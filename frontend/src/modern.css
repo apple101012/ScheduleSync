@@ -1,8 +1,21 @@
 /* Modern, clean styles for auth and dashboard pages */
 
+:root{
+  --bg-1: #0f1724; /* very dark */
+  --bg-2: #111318; /* dark panel */
+  --panel: #15181d;
+  --muted: #94a3b8;
+  --accent: #6366f1;
+  --accent-2: #60a5fa;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --card-shadow: rgba(2,6,23,0.6);
+  font-family: Inter, 'Segoe UI', Arial, sans-serif;
+}
+
 body {
-  background: #f6f8fa;
-  font-family: 'Segoe UI', Arial, sans-serif;
+  background: radial-gradient(1200px 600px at 10% 10%, rgba(99,102,241,0.06), transparent 10%), var(--bg-1);
+  color: #e6eef8;
   margin: 0;
   padding: 0;
 }
@@ -12,27 +25,27 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f6f8fa;
 }
 
 .auth-box {
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-  padding: 2.5rem 2rem 2rem 2rem;
+  background: linear-gradient(180deg, var(--panel), #0f1113);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px var(--card-shadow);
+  padding: 2rem;
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
+  border: 1px solid rgba(255,255,255,0.03);
 }
 
 .auth-title {
-  font-size: 2rem;
+  font-size: 1.9rem;
   font-weight: 700;
   text-align: center;
-  color: #22223b;
-  margin-bottom: 0.5rem;
+  color: #f8fafc;
+  margin-bottom: 0.25rem;
 }
 
 .auth-form {
@@ -43,52 +56,53 @@ body {
 
 .auth-input {
   padding: 0.75rem 1rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid rgba(255,255,255,0.04);
   border-radius: 8px;
   font-size: 1rem;
-  background: #f9fafb;
-  transition: border 0.2s;
+  background: rgba(255,255,255,0.02);
+  color: var(--muted);
+  transition: border 0.15s, box-shadow 0.15s;
 }
 .auth-input:focus {
-  border: 1.5px solid #6366f1;
+  border: 1.5px solid var(--accent);
   outline: none;
+  box-shadow: 0 6px 18px rgba(99,102,241,0.08);
 }
 
 .auth-btn {
-  background: linear-gradient(90deg, #6366f1 0%, #60a5fa 100%);
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
   color: #fff;
   font-weight: 600;
   border: none;
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  padding: 0.7rem 1rem;
   font-size: 1rem;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: transform 0.12s ease, box-shadow 0.12s;
 }
 .auth-btn:hover {
-  background: linear-gradient(90deg, #60a5fa 0%, #6366f1 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(96,165,250,0.08);
 }
 
 /* Dashboard styles */
 .dashboard-container {
-  max-width: 900px;
-  margin: 2rem auto;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-  padding: 2.5rem 2rem;
+  max-width: 1100px;
+  margin: 2.5rem auto;
+  border-radius: 14px;
+  padding: 2rem;
 }
 .dashboard-title {
-  font-size: 2.2rem;
-  font-weight: 700;
-  color: #22223b;
-  margin-bottom: 1.5rem;
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 1.25rem;
 }
 .section-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #373a40;
-  margin-bottom: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #e6eef8;
+  margin-bottom: 0.6rem;
 }
 .friends-list {
   list-style: none;
@@ -98,25 +112,120 @@ body {
 .friend-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
 }
 .status-dot {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   display: inline-block;
+  margin-left: 0.25rem;
 }
 .status-dot.free {
-  background: #22c55e;
+  background: var(--success);
 }
 .status-dot.busy {
-  background: #ef4444;
+  background: var(--danger);
 }
 .ask-card {
-  background: #f3f4f6;
-  border-radius: 12px;
-  padding: 1rem 1.5rem;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
   margin-top: 1rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+/* react-big-calendar dark theme overrides */
+.rbc-calendar {
+  background: transparent;
+}
+.rbc-month-view, .rbc-month-view .rbc-row-content {
+  background: transparent;
+}
+.rbc-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #dbeafe;
+  margin-bottom: 0.5rem;
+}
+.rbc-btn-group button {
+  background: rgba(255,255,255,0.03);
+  color: #e6eef8;
+  border: 1px solid rgba(255,255,255,0.04);
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+}
+.rbc-month-view .rbc-row .rbc-date-cell {
+  background: transparent;
+}
+.rbc-event {
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 0.9rem;
+}
+.rbc-day-slot .rbc-events-container .rbc-event {
+  box-shadow: 0 6px 18px rgba(2,6,23,0.6);
+}
+.rbc-month-view .rbc-row-content .rbc-event {
+  margin: 2px 4px;
+}
+
+/* Fix off-range (previous/next month) white blocks and improve contrast */
+.rbc-off-range, .rbc-off-range a {
+  background: rgba(255,255,255,0.02) !important;
+  color: var(--muted) !important;
+}
+
+/* Day number color and cell backgrounds */
+.rbc-date-cell, .rbc-day-bg, .rbc-day-slot, .rbc-month-view .rbc-header, .rbc-month-view .rbc-date-cell {
+  background: transparent !important;
+}
+.rbc-date {
+  color: #cbd5e1 !important; /* softer day number */
+  font-weight: 600;
+}
+
+/* Today highlight - subtle border */
+.rbc-today {
+  background: linear-gradient(180deg, rgba(99,102,241,0.03), transparent) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+}
+
+/* Selected cell (light blue default) make it darker and blend */
+.rbc-selected, .rbc-selected .rbc-date-cell {
+  background: rgba(96,165,250,0.08) !important;
+}
+
+/* Event text contrast */
+.rbc-event, .rbc-event * {
+  color: #ffffff !important;
+}
+.rbc-event .rbc-event-label, .rbc-event .rbc-event-content {
+  color: #fff !important;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.35);
+}
+
+/* Make header and toolbar text readable */
+.rbc-toolbar h2, .rbc-toolbar .rbc-btn-group button, .rbc-toolbar .rbc-toolbar-label {
+  color: #e6eef8 !important;
+}
+
+/* Reduce white borders between cells */
+.rbc-month-view .rbc-row.rbc-month-row > .rbc-row-segment, .rbc-month-view .rbc-row {
+  border-color: rgba(255,255,255,0.03) !important;
+}
+
+/* Ensure agenda and other buttons use dark backgrounds */
+.rbc-btn-group button, .rbc-btn-group button:focus {
+  background: rgba(255,255,255,0.02) !important;
+  border-color: rgba(255,255,255,0.04) !important;
+}
+
+/* Small responsive tweaks */
+@media (max-width: 800px) {
+  .dashboard-container { padding: 1rem; }
+  .rbc-calendar { font-size: 0.92rem; }
 }
