@@ -1,12 +1,4 @@
-# Get user info (for dashboard)
 from fastapi import Response
-
-@router.get("/user/{username}")
-async def get_user(username: str, request: Request):
-    user = await request.app.mongodb["users"].find_one({"username": username})
-    if not user:
-        return Response(status_code=404)
-    return {"username": user["username"], "email": user.get("email", ""), "friends": user.get("friends", [])}
 # backend/routes/user.py
 from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
@@ -67,6 +59,21 @@ async def login(data: LoginRequest, request: Request):
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
     return {"access_token": token, "token_type": "bearer"}
+
+
+# Alias for clients that POST to /Login with different casing
+@router.post("/Login")
+async def login_alias(data: LoginRequest, request: Request):
+    return await login(data, request)
+
+
+# Get user info (for dashboard)
+@router.get("/user/{username}")
+async def get_user(username: str, request: Request):
+    user = await request.app.mongodb["users"].find_one({"username": username})
+    if not user:
+        return Response(status_code=404)
+    return {"username": user["username"], "email": user.get("email", ""), "friends": user.get("friends", [])}
 
 
 # Add friend route for frontend
