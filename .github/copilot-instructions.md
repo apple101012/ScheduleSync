@@ -1,106 +1,45 @@
-<!-- Use this file to provide workspace-specific custom instructions to Copilot. For more details, visit https://code.visualstudio.com/docs/copilot/copilot-customization#_use-a-githubcopilotinstructionsmd-file -->
-- [ ] Verify that the copilot-instructions.md file in the .github directory is created.
+- ScheduleSync is a full-stack app with a React (Vite) frontend, FastAPI backend, MongoDB, and JWT authentication, all orchestrated with Docker Compose.
 
-- [ ] Clarify Project Requirements
-	<!-- Ask for project type, language, and frameworks if not specified. Skip if already provided. -->
+- The project uses a custom modern.css for styling, and all main React pages (Login, Register, Dashboard) include console.log debugging for form values, API requests, responses, and errors.
 
-- [ ] Scaffold the Project
-	<!--
-	Ensure that the previous step has been marked as completed.
-	Call project setup tool with projectType parameter.
-	Run scaffolding command to create project files and folders.
-	Use '.' as the working directory.
-	If no appropriate projectType is available, search documentation using available tools.
-	Otherwise, create the project structure manually using available file creation tools.
-	-->
+- Sample data can be loaded into MongoDB using the sample-data.js script (see README for details).
 
-- [ ] Customize the Project
-	<!--
-	Verify that all previous steps have been completed successfully and you have marked the step as completed.
-	Develop a plan to modify codebase according to user requirements.
-	Apply modifications using appropriate tools and user-provided references.
-	Skip this step for "Hello World" projects.
-	-->
+- Nginx is configured for SPA routing in production.
 
-- [ ] Install Required Extensions
-	<!-- ONLY install extensions provided mentioned in the get_project_setup_info. Skip this step otherwise and mark as completed. -->
+- Dev Containers support is enabled via .devcontainer/devcontainer.json. To develop in a containerized environment, use "Dev Containers: Reopen in Container" in VS Code. This will launch all services and install frontend dependencies automatically.
 
-- [ ] Compile the Project
-	<!--
-	Verify that all previous steps have been completed.
-	Install any missing dependencies.
-	Run diagnostics and resolve any issues.
-	Check for markdown files in project folder for relevant instructions on how to do this.
-	-->
+- For debugging, check the browser console for logs on all user actions. Backend logs are available via Docker.
+ - For debugging, check the browser console for logs on all user actions. Backend logs are available via Docker.
 
-- [ ] Create and Run Task
-	<!--
-	Verify that all previous steps have been completed.
-	Check https://code.visualstudio.com/docs/debugtest/tasks to determine if the project needs a task. If so, use the create_and_run_task to create and launch a task based on package.json, README.md, and project structure.
-	Skip this step otherwise.
-	 -->
+Current runtime status and known issues (Oct 2025)
+- Dev Container support was temporarily added then removed; there is no active `.devcontainer/devcontainer.json` that the workspace will auto-open.
+- Frontend now uses an injected environment variable `VITE_API_URL` (fallbacks to `http://localhost:8000`) and pages were updated to call backend endpoints directly (Login, Register, Dashboard). Ensure the frontend build includes the correct `VITE_API_URL`.
+- Production frontend is served by nginx (container `frontend`) and will respond on host port 5173. nginx serves static files and will return HTML 405/404 pages when API requests hit nginx instead of the backend.
+- Sample data initially contained placeholder/malformed bcrypt strings which caused the backend to raise exceptions when verifying passwords. A `backend/test.py` helper was added to generate and insert valid bcrypt hashes and reset sample data, but passlib/bcrypt incompatibilities in the container were encountered during automated hashing.
 
-- [ ] Launch the Project
-	<!--
-	Verify that all previous steps have been completed.
-	Prompt user for debug mode, launch only if confirmed.
-	 -->
+Errors seen during testing
+- Browser console: "SyntaxError: JSON.parse: unexpected character" when login POST returned an HTML 405 page from nginx (frontend calling `/api/login` instead of backend).
+- Backend logs: "ValueError: malformed bcrypt hash (checksum must be exactly 31 chars)" and later "password cannot be longer than 72 bytes" when trying to run passlib hashing in certain contexts.
 
-- [ ] Ensure Documentation is Complete
-	<!--
-	Verify that all previous steps have been completed.
-	Verify that README.md and the copilot-instructions.md file in the .github directory exists and contains current project information.
-	Clean up the copilot-instructions.md file in the .github directory by removing all HTML comments.
-	 -->
+Immediate remediation steps for the next developer
+1) Verify services are running:
+	- `docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"`
+2) Ensure frontend points at backend during development (quickest): create `frontend/.env` with `VITE_API_URL=http://localhost:8000`, then rebuild frontend:
+	- `docker compose build frontend`
+	- `docker compose up -d frontend`
+	- Hard-refresh browser `Ctrl+Shift+R` to clear cached assets.
+3) Reset sample data with known bcrypt hashes for testing users (apple/apple and alice/password123):
+	- Option A (manual, resilient): generate bcrypt hashes inside the backend container and insert into Mongo:
+	  - `docker compose exec backend python -c "import bcrypt; print(bcrypt.hashpw(b'password123'[:72], bcrypt.gensalt()).decode()); print(bcrypt.hashpw(b'apple'[:72], bcrypt.gensalt()).decode())"`
+	  - Copy the printed hashes and run:
+		 `docker exec -it schedulesync-mongo mongosh schedulesync --eval \"db.users.deleteMany({}); db.users.insertMany([{username:'alice', email:'alice@example.com', password_hash:'<hash1>', friends:['bob','carol']},{username:'bob', email:'bob@example.com', password_hash:'<hash1>', friends:['alice']},{username:'carol', email:'carol@example.com', password_hash:'<hash1>', friends:['alice']},{username:'apple', email:'apple@example.com', password_hash:'<hash2>', friends:[]}])\"`
+	- Option B (scripted): copy `backend/test.py` into the container and run `python /app/test.py insert-sample`. If passlib fails inside container, use Option A instead.
+4) Test backend login directly from host (PowerShell):
+	- `$body = @{username='apple'; password='apple'} | ConvertTo-Json`
+	- `Invoke-RestMethod -Uri http://localhost:8000/login -Method Post -Body $body -ContentType 'application/json'`
 
-<!--
-## Execution Guidelines
-PROGRESS TRACKING:
-- If any tools are available to manage the above todo list, use it to track progress through this checklist.
-- After completing each step, mark it complete and add a summary.
-- Read current todo list status before starting each new step.
+Troubleshooting tips
+- If passlib raises backend bcrypt errors, check bcrypt version in container: `docker compose exec backend python -c "import bcrypt; print(bcrypt.__version__)"`. If incompatible, either pin a compatible `bcrypt` version in `backend/requirements.txt` and rebuild, or generate hashes directly with `bcrypt` and insert them into Mongo.
+- If frontend still gets HTML errors, inspect the network tab to see the exact URL used and ensure `VITE_API_URL` is correctly set before the build.
 
-COMMUNICATION RULES:
-- Avoid verbose explanations or printing full command outputs.
-- If a step is skipped, state that briefly (e.g. "No extensions needed").
-- Do not explain project structure unless asked.
-- Keep explanations concise and focused.
-
-DEVELOPMENT RULES:
-- Use '.' as the working directory unless user specifies otherwise.
-- Avoid adding media or external links unless explicitly requested.
-- Use placeholders only with a note that they should be replaced.
-- Use VS Code API tool only for VS Code extension projects.
-- Once the project is created, it is already opened in Visual Studio Code—do not suggest commands to open this project in Visual Studio again.
-- If the project setup information has additional rules, follow them strictly.
-
-FOLDER CREATION RULES:
-- Always use the current directory as the project root.
-- If you are running any terminal commands, use the '.' argument to ensure that the current working directory is used ALWAYS.
-- Do not create a new folder unless the user explicitly requests it besides a .vscode folder for a tasks.json file.
-- If any of the scaffolding commands mention that the folder name is not correct, let the user know to create a new folder with the correct name and then reopen it again in vscode.
-
-EXTENSION INSTALLATION RULES:
-- Only install extension specified by the get_project_setup_info tool. DO NOT INSTALL any other extensions.
-
-PROJECT CONTENT RULES:
-- If the user has not specified project details, assume they want a "Hello World" project as a starting point.
-- Avoid adding links of any type (URLs, files, folders, etc.) or integrations that are not explicitly required.
-- Avoid generating images, videos, or any other media files unless explicitly requested.
-- If you need to use any media assets as placeholders, let the user know that these are placeholders and should be replaced with the actual assets later.
-- Ensure all generated components serve a clear purpose within the user's requested workflow.
-- If a feature is assumed but not confirmed, prompt the user for clarification before including it.
-- If you are working on a VS Code extension, use the VS Code API tool with a query to find relevant VS Code API references and samples related to that query.
-
-TASK COMPLETION RULES:
-- Your task is complete when:
-  - Project is successfully scaffolded and compiled without errors
-  - copilot-instructions.md file in the .github directory exists in the project
-  - README.md file exists and is up to date
-  - User is provided with clear instructions to debug/launch the project
-
-Before starting a new task in the above plan, update progress in the plan.
--->
-- Work through each checklist item systematically.
-- Keep communication concise and focused.
-- Follow development best practices.
+If you are picking up work from here, start by fixing frontend->backend routing (quickest wins), then reset sample data with valid bcrypt hashes, and finally verify login flows end-to-end. Keep notes of any package/version mismatches in the backend container — they are the most likely cause of hashing errors.

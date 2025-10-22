@@ -1,0 +1,25 @@
+// For full reference: https://containers.dev/implementors/json_reference/
+{
+  "name": "ScheduleSync DevContainer",
+  "dockerComposeFile": [
+    "../docker-compose.yml"
+  ],
+  "service": "frontend",
+  "workspaceFolder": "/workspace/frontend",
+  "shutdownAction": "stopCompose",
+  "postCreateCommand": "npm install --prefix frontend",
+  "forwardPorts": [5173, 8000, 8081],
+  "remoteUser": "root",
+  "features": {},
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "mounts": [
+    "source=${localWorkspaceFolder}/backend,target=/workspace/backend,type=bind,consistency=cached",
+    "source=${localWorkspaceFolder}/frontend,target=/workspace/frontend,type=bind,consistency=cached"
+  ]
+}

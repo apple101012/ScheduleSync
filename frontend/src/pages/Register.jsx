@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import '../modern.css';
 
 function Register() {
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,12 +15,14 @@ function Register() {
     setSuccess("");
     console.log('Register attempt:', { username, email, password });
     try {
-      const res = await fetch('/api/register', {
+      const res = await fetch(`${API_BASE}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, email, password })
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = text ? JSON.parse(text) : {}; } catch { setError(`Server error ${res.status}`); return; }
       console.log('Register response:', data);
       if (res.ok) {
         setSuccess('Registration successful! You can now log in.');

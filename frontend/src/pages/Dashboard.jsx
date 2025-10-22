@@ -4,6 +4,7 @@ import axios from 'axios';
 import '../modern.css';
 
 function Dashboard() {
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
   const [friendUsername, setFriendUsername] = useState("");
   const [friends, setFriends] = useState([]);
   const [availability, setAvailability] = useState({});
@@ -24,7 +25,7 @@ function Dashboard() {
   const fetchFriends = async (jwt, user) => {
     try {
       console.log('Fetching user info for:', user);
-      const userRes = await axios.get(`/api/user/${user}`, {
+      const userRes = await axios.get(`${API_BASE}/user/${user}`, {
         headers: { Authorization: `Bearer ${jwt}` }
       });
       setFriends(userRes.data.friends || []);
@@ -32,7 +33,7 @@ function Dashboard() {
       const avail = {};
       await Promise.all((userRes.data.friends || []).map(async (f) => {
         try {
-          const res = await axios.get(`/api/availability/${f}`);
+          const res = await axios.get(`${API_BASE}/availability/${f}`);
           avail[f] = res.data.status === 'free' ? 'free' : 'busy';
           console.log(`Availability for ${f}:`, res.data.status);
         } catch (err) {
@@ -53,7 +54,7 @@ function Dashboard() {
     if (!friendUsername) return;
     try {
       console.log('Adding friend:', friendUsername);
-      await axios.post('/api/user/add-friend', {
+      await axios.post(`${API_BASE}/user/add-friend`, {
         username,
         friend: friendUsername
       }, {
@@ -79,7 +80,7 @@ function Dashboard() {
     setAskResult(null);
     console.log('Ask query:', query);
     try {
-      const res = await axios.post('/api/ask', { question: query });
+  const res = await axios.post(`${API_BASE}/ask`, { question: query });
       setAskResult(res.data);
       console.log('Ask response:', res.data);
     } catch (err) {

@@ -6,17 +6,28 @@ function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     console.log('Login attempt:', { username, password });
     try {
-      const res = await fetch('/api/login', {
+  const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       });
-      const data = await res.json();
+      // Guard: backend should return JSON; if not, read text to avoid JSON.parse error
+      const text = await res.text();
+      let data;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (parseErr) {
+        console.error('Response was not JSON:', text);
+        setError(`Server error: ${res.status} ${res.statusText}`);
+        return;
+      }
       console.log('Login response:', data);
       if (res.ok && data.access_token) {
         localStorage.setItem('token', data.access_token);
