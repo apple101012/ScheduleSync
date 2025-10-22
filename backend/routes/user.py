@@ -1,3 +1,12 @@
+# Get user info (for dashboard)
+from fastapi import Response
+
+@router.get("/user/{username}")
+async def get_user(username: str, request: Request):
+    user = await request.app.mongodb["users"].find_one({"username": username})
+    if not user:
+        return Response(status_code=404)
+    return {"username": user["username"], "email": user.get("email", ""), "friends": user.get("friends", [])}
 # backend/routes/user.py
 from fastapi import APIRouter, HTTPException, status, Depends
 from pydantic import BaseModel
