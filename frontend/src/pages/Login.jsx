@@ -1,16 +1,58 @@
-import React from 'react';
+import React, { useState } from 'react';
+import '../modern.css';
 
 function Login() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    console.log('Login attempt:', { username, password });
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      console.log('Login response:', data);
+      if (res.ok && data.access_token) {
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('username', username);
+        window.location.href = '/dashboard';
+      } else {
+        setError(data.detail || 'Login failed');
+      }
+    } catch (err) {
+      setError('Network error');
+      console.error('Login error:', err);
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-      <div className="w-full max-w-md p-8 bg-white rounded shadow">
-        <h2 className="mb-6 text-2xl font-bold text-center">Login</h2>
-        {/* Login form will go here */}
-        <form>
-          <input className="w-full mb-4 p-2 border rounded" type="text" placeholder="Username or Email" />
-          <input className="w-full mb-4 p-2 border rounded" type="password" placeholder="Password" />
-          <button className="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700" type="submit">Login</button>
+    <div className="auth-container">
+      <div className="auth-box">
+        <h2 className="auth-title">Login</h2>
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <input
+            className="auth-input"
+            type="text"
+            placeholder="Username or Email"
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+          />
+          <input
+            className="auth-input"
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+          />
+          <button className="auth-btn" type="submit">Login</button>
         </form>
+        {error && <div style={{ color: '#ef4444', marginTop: '0.5rem' }}>{error}</div>}
       </div>
     </div>
   );

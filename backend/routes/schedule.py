@@ -1,6 +1,6 @@
 # backend/routes/schedule.py
 from fastapi import APIRouter, HTTPException, Depends, Request
-from ..models import ScheduleModel
+from models import ScheduleModel
 from pydantic import BaseModel
 
 router = APIRouter()

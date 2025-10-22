@@ -1,17 +1,68 @@
-import React from 'react';
+import React, { useState } from 'react';
+import '../modern.css';
 
 function Register() {
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    console.log('Register attempt:', { username, email, password });
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password })
+      });
+      const data = await res.json();
+      console.log('Register response:', data);
+      if (res.ok) {
+        setSuccess('Registration successful! You can now log in.');
+        setUsername(""); setEmail(""); setPassword("");
+      } else {
+        setError(data.detail || 'Registration failed');
+      }
+    } catch (err) {
+      setError('Network error');
+      console.error('Register error:', err);
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-      <div className="w-full max-w-md p-8 bg-white rounded shadow">
-        <h2 className="mb-6 text-2xl font-bold text-center">Register</h2>
-        {/* Registration form will go here */}
-        <form>
-          <input className="w-full mb-4 p-2 border rounded" type="text" placeholder="Username" />
-          <input className="w-full mb-4 p-2 border rounded" type="email" placeholder="Email" />
-          <input className="w-full mb-4 p-2 border rounded" type="password" placeholder="Password" />
-          <button className="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700" type="submit">Register</button>
+    <div className="auth-container">
+      <div className="auth-box">
+        <h2 className="auth-title">Register</h2>
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <input
+            className="auth-input"
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+          />
+          <input
+            className="auth-input"
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+          />
+          <input
+            className="auth-input"
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+          />
+          <button className="auth-btn" type="submit">Register</button>
         </form>
+        {error && <div style={{ color: '#ef4444', marginTop: '0.5rem' }}>{error}</div>}
+        {success && <div style={{ color: '#22c55e', marginTop: '0.5rem' }}>{success}</div>}
       </div>
     </div>
   );
