@@ -77,30 +77,86 @@ async def insert_sample():
     await db.users.delete_many({})
     await db.schedules.delete_many({})
 
-    # Create sample users with bcrypt hashes
+    import random
+    from bson import ObjectId
+    # Generate 20+ friends for apple
+    friend_count = 25
+    apple_friends = [f"friend{i}" for i in range(1, friend_count+1)]
+    # Create users: alice, bob, carol, apple, and apple's friends
     users = [
         {"username": "alice", "email": "alice@example.com", "password_hash": bcrypt_hash("password123"), "friends": ["bob", "carol"]},
         {"username": "bob", "email": "bob@example.com", "password_hash": bcrypt_hash("password123"), "friends": ["alice"]},
         {"username": "carol", "email": "carol@example.com", "password_hash": bcrypt_hash("password123"), "friends": ["alice"]},
-        {"username": "apple", "email": "apple@example.com", "password_hash": bcrypt_hash("apple"), "friends": []}
+        {"username": "apple", "email": "apple@example.com", "password_hash": bcrypt_hash("apple"), "friends": apple_friends}
     ]
+    for f in apple_friends:
+        users.append({"username": f, "email": f"{f}@example.com", "password_hash": bcrypt_hash("password123"), "friends": ["apple"]})
 
     result = await db.users.insert_many(users)
     print(f"Inserted {len(result.inserted_ids)} users")
 
+    # Helper to generate random event
+    def random_event():
+        # Random day in October 2025
+        day = random.randint(1, 31)
+        start_hour = random.randint(8, 20)
+        duration = random.randint(1, 3)
+        start = datetime(2025, 10, day, start_hour, random.choice([0, 15, 30, 45]))
+        end = start.replace(hour=min(start.hour+duration, 23))
+        return {
+            "_id": str(ObjectId()),
+            "title": random.choice(["Meeting", "Class", "Work", "Gym", "Call", "Study", "Lunch", "Project", "Break", "Appointment"]),
+            "start": start.isoformat(),
+            "end": end.isoformat()
+        }
+
+    # Helper to generate a busy event for today (current time)
+    def busy_event_now():
+        now = datetime.now()
+        start = now.replace(year=2025, month=10, day=now.day, minute=0, second=0, microsecond=0)
+        end = start.replace(hour=min(start.hour+2, 23))
+        return {
+            "_id": str(ObjectId()),
+            "title": "Busy Now",
+            "start": start.isoformat(),
+            "end": end.isoformat()
+        }
+
+    # Helper to generate a free schedule (no event at current time)
+    def free_events():
+        # All events are outside current hour
+        now = datetime.now()
+        events = []
+        for _ in range(20):
+            # Pick a random hour not equal to now.hour
+            hour = random.choice([h for h in range(8, 20) if h != now.hour])
+            day = random.randint(1, 31)
+            start = datetime(2025, 10, day, hour, 0)
+            end = start.replace(hour=min(hour+2, 23))
+            events.append({
+                "_id": str(ObjectId()),
+                "title": random.choice(["Meeting", "Class", "Work", "Gym", "Call", "Study", "Lunch", "Project", "Break", "Appointment"]),
+                "start": start.isoformat(),
+                "end": end.isoformat()
+            })
+        return events
+
     schedules = [
-        {"username": "alice", "events": [
-            {"day": "monday", "start_time": "09:00", "end_time": "11:00", "status": "class"},
-            {"day": "friday", "start_time": "15:00", "end_time": "17:00", "status": "work"}
-        ]},
-        {"username": "bob", "events": [
-            {"day": "friday", "start_time": "14:00", "end_time": "16:00", "status": "class"}
-        ]},
-        {"username": "carol", "events": [
-            {"day": "friday", "start_time": "15:00", "end_time": "18:00", "status": "work"}
-        ]},
+        {"username": "alice", "events": [random_event() for _ in range(5)]},
+        {"username": "bob", "events": [random_event() for _ in range(5)]},
+        {"username": "carol", "events": [random_event() for _ in range(5)]},
         {"username": "apple", "events": []}
     ]
+    # Add schedules for apple's friends
+    # Half busy now, half free now
+    for i, f in enumerate(apple_friends):
+        if i % 2 == 0:
+            # Busy now
+            events = [busy_event_now()] + [random_event() for _ in range(19)]
+        else:
+            # Free now
+            events = free_events()
+        schedules.append({"username": f, "events": events})
 
     res2 = await db.schedules.insert_many(schedules)
     print(f"Inserted {len(res2.inserted_ids)} schedules")
