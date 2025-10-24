@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Login() {
+export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [response, setResponse] = useState(null);
@@ -24,6 +24,7 @@ export default function Login() {
       const data = await res.json();
       if (res.ok) {
         setResponse(data);
+        if (onLogin) onLogin(data.access_token);
       } else {
         setError(data.detail || 'Login failed');
       }
