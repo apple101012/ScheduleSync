@@ -79,21 +79,33 @@ async def insert_sample():
 
     import random
     from bson import ObjectId
+
     # Generate 20+ friends for apple
     friend_count = 25
     apple_friends = [f"friend{i}" for i in range(1, friend_count+1)]
-    # Create users: alice, bob, carol, apple, and apple's friends
+    # Add a 'busy friend' who is always busy
+    busy_friend_username = "busy friend"
     users = [
         {"username": "alice", "email": "alice@example.com", "password_hash": bcrypt_hash("password123"), "friends": ["bob", "carol"]},
         {"username": "bob", "email": "bob@example.com", "password_hash": bcrypt_hash("password123"), "friends": ["alice"]},
         {"username": "carol", "email": "carol@example.com", "password_hash": bcrypt_hash("password123"), "friends": ["alice"]},
-        {"username": "apple", "email": "apple@example.com", "password_hash": bcrypt_hash("apple"), "friends": apple_friends}
+        {"username": "apple", "email": "apple@example.com", "password_hash": bcrypt_hash("apple"), "friends": apple_friends + [busy_friend_username]},
+        {"username": busy_friend_username, "email": "busyfriend@example.com", "password_hash": bcrypt_hash("password123"), "friends": ["apple"]}
     ]
     for f in apple_friends:
         users.append({"username": f, "email": f"{f}@example.com", "password_hash": bcrypt_hash("password123"), "friends": ["apple"]})
+    print(f"Usernames to be inserted: {[u['username'] for u in users]}")
+    if busy_friend_username not in [u['username'] for u in users]:
+        raise Exception("'busy friend' is missing from users list before insertion!")
 
     result = await db.users.insert_many(users)
-    print(f"Inserted {len(result.inserted_ids)} users")
+    print(f"Inserted {len(result.inserted_ids)} users: {[u['username'] for u in users]}")
+    # Double-check after insert
+    inserted_usernames = [u['username'] for u in users]
+    if busy_friend_username not in inserted_usernames:
+        print("Warning: 'busy friend' was not inserted!")
+    else:
+        print("'busy friend' successfully included in inserted users.")
 
     # Helper to generate random event
     def random_event():
@@ -110,14 +122,26 @@ async def insert_sample():
             "end": end.isoformat()
         }
 
-    # Helper to generate a busy event for today (current time)
+    # Helper to generate a busy event for today (current time, system clock, in October 2025)
     def busy_event_now():
         now = datetime.now()
-        start = now.replace(year=2025, month=10, day=now.day, minute=0, second=0, microsecond=0)
+        # Always set year/month to 2025-10, but use current day/hour
+        start = datetime(2025, 10, now.day, now.hour, 0, 0)
         end = start.replace(hour=min(start.hour+2, 23))
         return {
             "_id": str(ObjectId()),
             "title": "Busy Now",
+            "start": start.isoformat(),
+            "end": end.isoformat()
+        }
+
+    # Helper to generate a 24/7 busy event for the whole of October 2025
+    def always_busy_event():
+        start = datetime(2025, 10, 1, 0, 0, 0)
+        end = datetime(2025, 10, 31, 23, 59, 59)
+        return {
+            "_id": str(ObjectId()),
+            "title": "Busy All Week",
             "start": start.isoformat(),
             "end": end.isoformat()
         }
@@ -141,17 +165,25 @@ async def insert_sample():
             })
         return events
 
+
     schedules = [
         {"username": "alice", "events": [random_event() for _ in range(5)]},
         {"username": "bob", "events": [random_event() for _ in range(5)]},
         {"username": "carol", "events": [random_event() for _ in range(5)]},
-        {"username": "apple", "events": []}
+        {"username": "apple", "events": []},
+        {"username": busy_friend_username, "events": [always_busy_event()]}
     ]
-    # Add schedules for apple's friends
-    # Half busy now, half free now
+
+    # Guarantee friend1, friend2, friend3 are busy right now (on current system day/hour in October 2025)
+    hardcoded_busy = {"friend1", "friend2", "friend3"}
+    random.shuffle(apple_friends)
+    half = len(apple_friends) // 2
     for i, f in enumerate(apple_friends):
-        if i % 2 == 0:
-            # Busy now
+        if f in hardcoded_busy:
+            # Always busy now (on current system day/hour in October 2025)
+            events = [busy_event_now()] + [random_event() for _ in range(19)]
+        elif i < half:
+            # Busy now (randomized)
             events = [busy_event_now()] + [random_event() for _ in range(19)]
         else:
             # Free now
@@ -159,7 +191,11 @@ async def insert_sample():
         schedules.append({"username": f, "events": events})
 
     res2 = await db.schedules.insert_many(schedules)
-    print(f"Inserted {len(res2.inserted_ids)} schedules")
+    print(f"Inserted {len(res2.inserted_ids)} schedules.")
+    # Print all users in DB for verification
+    print("Current users in DB after insert:")
+    async for u in db.users.find({}):
+        print(f"- {u.get('username')}")
     client.close()
 
 

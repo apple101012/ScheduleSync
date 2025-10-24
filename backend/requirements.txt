@@ -1,3 +1,5 @@
+# For event time parsing in schedule availability
+python-dateutil
 fastapi
 uvicorn[standard]
 motor

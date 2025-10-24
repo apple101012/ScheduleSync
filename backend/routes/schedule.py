@@ -98,8 +98,16 @@ async def get_availability(username: str, request: Request):
         try:
             start = dateutil.parser.isoparse(ev["start"])
             end = dateutil.parser.isoparse(ev["end"])
+            # If no tzinfo, assume UTC
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=timezone.utc)
+            if end.tzinfo is None:
+                end = end.replace(tzinfo=timezone.utc)
+            # Debug log
+            # print(f"Checking event: {start} to {end} against now: {now}")
             if start <= now <= end:
                 return {"username": username, "status": "busy"}
-        except Exception:
+        except Exception as e:
+            # print(f"Error parsing event: {ev}, error: {e}")
             continue
     return {"username": username, "status": "free"}
