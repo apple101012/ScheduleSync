@@ -143,3 +143,18 @@ body { background: #0a0a0a; color: #f5f5f5; font-family: system-ui, -apple-syste
 }
 
 /* keep the rest of your existing styles … (mini popup, modal, etc.) */
+.friend-list { display: grid; gap: 6px; }
+.friend-row { display: grid; grid-template-columns: 16px 10px 1fr; gap: 8px; align-items: center; }
+.busy-dot { width: 10px; height: 10px; border-radius: 999px; }
+.friend-name { font-size: 14px; }
+
+.color-chip { display: inline-block; width: 14px; height: 10px; border-radius: 4px; vertical-align: -1px; margin-left: 6px; }
+
+.error { color: #fca5a5; background: #2a1111; border: 1px solid #7f1d1d; padding: 6px 8px; border-radius: 8px; margin-top: 8px; }
+.add-friend { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.add-friend .input {
+  background: #0e1320; border: 1px solid #1f2937; color: #d1d5db;
+  border-radius: 10px; padding: 8px 10px; outline: none;
+}
+.add-friend .input:focus { border-color: #334155; }
+.small { font-size: 12px; }
