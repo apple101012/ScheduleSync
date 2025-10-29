@@ -1,0 +1,78 @@
+/* Base */
+.rbc-calendar { background: #111; color: #e5e5e5; }
+.rbc-toolbar { color: #e5e5e5; }
+.rbc-toolbar button {
+  color: #e5e5e5; background: #1b1b1b; border: 1px solid #2a2a2a;
+}
+.rbc-toolbar button:hover,
+.rbc-toolbar button:focus { background: #262626; border-color: #3a3a3a; }
+.rbc-toolbar button.rbc-active { background: #2d2d2d; }
+
+/* Headers / grid lines */
+.rbc-header {
+  border-bottom: 1px solid #2a2a2a; color: #cfcfcf; background: #141414;
+}
+.rbc-header + .rbc-header { border-left: 1px solid #2a2a2a; }
+.rbc-time-header.rbc-overflowing { border-right: 1px solid #2a2a2a; }
+.rbc-time-content > * + * > * { border-left: 1px solid #2a2a2a; }
+.rbc-time-content { border-top: 2px solid #2a2a2a; }
+
+/* Background days/slots (prevents white columns) */
+.rbc-day-bg { background: #111; }
+.rbc-day-bg + .rbc-day-bg { border-left: 1px solid #1f1f1f; }
+.rbc-timeslot-group { border-bottom: 1px solid #1c1c1c; }
+.rbc-time-gutter, .rbc-header-gutter { background: #121212; }
+
+/* Today highlight */
+.rbc-today .rbc-day-bg,
+.rbc-today { background: #121922; } /* subtle blue-ish dark */
+.rbc-current-time-indicator { background-color: #74ad31; }
+
+/* Events */
+.rbc-event, .rbc-day-slot .rbc-background-event {
+  background-color: #2563eb; /* blue */
+  color: #fff;
+  border: none;
+}
+.rbc-event.rbc-selected { background-color: #1d4ed8; }
+.rbc-day-slot .rbc-event, .rbc-day-slot .rbc-background-event { border: 1px solid #1d4ed8; }
+
+/* Off-range/month view */
+.rbc-off-range { color: #9ca3af; }
+.rbc-off-range-bg { background: #0f0f0f; }
+
+/* Agenda view */
+.rbc-agenda-view table.rbc-agenda-table { border: 1px solid #2a2a2a; }
+.rbc-agenda-view thead > tr > th { border-bottom: 1px solid #2a2a2a; background: #141414; color: #e5e5e5; }
+.rbc-agenda-view tbody > tr + tr { border-top: 1px solid #1f1f1f; }
+
+
+/* ---- Lighter grid for week/day ---- */
+.rbc-time-view .rbc-time-slot { 
+  border-top: none;            /* hide minute slots */
+}
+.rbc-time-view .rbc-timeslot-group { 
+  border-bottom: 1px solid #1a1a1a;  /* keep only hour lines (subtle) */
+}
+
+/* soften headers & gutters a bit */
+.rbc-time-gutter,
+.rbc-header-gutter {
+  background: #121212;
+  color: #bdbdbd;
+}
+
+/* optional: lighter 'today' background so it doesn't scream */
+.rbc-today,
+.rbc-time-view .rbc-today .rbc-day-bg {
+  background: #141924;  /* very subtle */
+}
+
+/* events still pop */
+.rbc-event,
+.rbc-day-slot .rbc-background-event {
+  background-color: #2563eb;
+  color: #fff;
+  border: none;
+}
+.rbc-event.rbc-selected { background-color: #1d4ed8; }
