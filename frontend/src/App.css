@@ -117,3 +117,29 @@ body { background: #0a0a0a; color: #f5f5f5; font-family: system-ui, -apple-syste
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
 .btn.primary { background: #1f2b52; border-color: #2b3a72; }
 .btn.primary:hover { background: #263463; }
+
+/* --- banner shown during "place mode" --- */
+.hint-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: #11161f; border: 1px solid #22304a; color: #dbe5ff;
+  padding: 10px 12px; border-radius: 10px; margin-bottom: 10px;
+  font-size: 14px;
+}
+.hint-banner .dot { width: 8px; height: 8px; border-radius: 999px; background: #5b8cff; display: inline-block; }
+.link-btn { margin-left: auto; background: transparent; border: none; color: #9ec1ff; cursor: pointer; }
+.link-btn:hover { text-decoration: underline; }
+
+/* make the active Add button look outlined */
+.btn-outline { background: transparent; border-color: #3a4e7a; }
+
+/* during placing, give the calendar a subtle focus frame */
+.calendar-card.placing { box-shadow: 0 0 0 2px #2a3a5f inset; }
+
+/* --- Selection outline style (instead of heavy fill) --- */
+.rbc-slot-selection {
+  background: rgba(59, 130, 246, 0.05); /* very light fill */
+  border: 2px dashed #5b8cff;          /* outlined look */
+  color: #cfe0ff;
+}
+
+/* keep the rest of your existing styles … (mini popup, modal, etc.) */

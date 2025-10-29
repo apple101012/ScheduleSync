@@ -32,6 +32,9 @@ export default function App() {
   const [selected, setSelected] = useState<EventItem | null>(null)
   const [showEditor, setShowEditor] = useState(false)
 
+  // "place mode" state: when not null, user is expected to drag-select a slot
+  const [pendingAddDay, setPendingAddDay] = useState<null | "today" | "tomorrow">(null)
+
   useEffect(() => {
     const now = new Date()
     const s = new Date(now); s.setHours(10, 0, 0, 0)
@@ -49,19 +52,37 @@ export default function App() {
     return Math.random().toString(36).slice(2) + Date.now().toString(36)
   }
 
-  function quickAdd(dayOffset: number) {
-    const base = new Date(); base.setDate(base.getDate() + dayOffset)
-    const start = new Date(base); start.setHours(14, 0, 0, 0)
-    const end = new Date(base); end.setHours(15, 0, 0, 0)
-    setEvents(prev => [...prev, {
-      id: cryptoId(),
-      title: dayOffset === 0 ? "Today Event" : "Tomorrow Event",
-      description: "Quick added",
-      start, end
-    }])
+  // Start "place mode" for Today/Tomorrow — user will drag on calendar to pick time.
+  function startPlaceMode(kind: "today" | "tomorrow") {
+    setPendingAddDay(kind)
+
+    // optional: nudge the calendar date so it's on the right day
+    const base = new Date()
+    if (kind === "tomorrow") base.setDate(base.getDate() + 1)
+    setDate(base)
   }
 
+  // Old quickAdd replaced by place-mode triggers
+  // function quickAdd(...) { ... }  // removed
+
   function onSelectSlot(slot: SlotInfo) {
+    if (pendingAddDay) {
+      // Enforce the day if you want strictness:
+      // If user picked the "wrong" day, we still allow but you can warn.
+      const title = prompt("Event title?")
+      if (!title) { setPendingAddDay(null); return }
+      setEvents(prev => [...prev, {
+        id: cryptoId(),
+        title,
+        start: slot.start,
+        end: slot.end,
+        description: ""
+      }])
+      setPendingAddDay(null)
+      return
+    }
+
+    // Normal (non-place-mode) quick add
     const title = prompt("Event title?", "New Event")
     if (!title) return
     setEvents(prev => [...prev, {
@@ -103,8 +124,12 @@ export default function App() {
       <header className="topbar">
         <div className="brand">ScheduleComparer</div>
         <div className="actions">
-          <button className="btn" onClick={() => quickAdd(0)}>Add Today</button>
-          <button className="btn" onClick={() => quickAdd(1)}>Add Tomorrow</button>
+          <button className={`btn ${pendingAddDay==='today' ? 'btn-outline' : ''}`} onClick={() => startPlaceMode("today")}>
+            Add Today
+          </button>
+          <button className={`btn ${pendingAddDay==='tomorrow' ? 'btn-outline' : ''}`} onClick={() => startPlaceMode("tomorrow")}>
+            Add Tomorrow
+          </button>
         </div>
       </header>
 
@@ -115,7 +140,16 @@ export default function App() {
         </aside>
 
         <main className="main">
-          <div className="calendar-card">
+          {/* Add-mode hint banner */}
+          {pendingAddDay && (
+            <div className="hint-banner">
+              <span className="dot" />
+              Drag on the calendar to outline a time range for <b>{pendingAddDay}</b>, then release to name it.
+              <button className="link-btn" onClick={() => setPendingAddDay(null)}>Cancel</button>
+            </div>
+          )}
+
+          <div className={`calendar-card ${pendingAddDay ? "placing" : ""}`}>
             <DndProvider backend={HTML5Backend}>
               <DnDCalendar
                 localizer={localizer}
@@ -139,7 +173,7 @@ export default function App() {
                 max={max}
                 scrollToTime={scrollTo}
                 dayLayoutAlgorithm="no-overlap"
-                style={{ height: "calc(100vh - 130px)" }}
+                style={{ height: "calc(100vh - 170px)" }}  // a bit shorter to fit banner
               />
             </DndProvider>
           </div>
