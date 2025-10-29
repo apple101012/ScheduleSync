@@ -29,3 +29,91 @@ body { background: #0a0a0a; color: #f5f5f5; font-family: system-ui, -apple-syste
   border: 1px solid #2a2a2a; cursor: pointer; transition: background .15s ease, border-color .15s ease;
 }
 .btn:hover { background: #2a2a2a; border-color: #3a3a3a; }
+
+/* --- mini details popup --- */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+  display: grid; place-items: center; z-index: 50;
+}
+
+.mini-card {
+  width: 360px; background: #121212; border: 1px solid #2a2a2a;
+  border-radius: 12px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.mini-header { display: flex; align-items: center; justify-content: space-between; }
+.mini-title { font-weight: 600; font-size: 16px; }
+.icon-btn { border: 1px solid #2a2a2a; background: #1a1a1a; color: #e5e5e5; border-radius: 8px; padding: 4px 8px; cursor: pointer; }
+.icon-btn:hover { background: #242424; }
+
+.mini-body { margin-top: 8px; display: grid; gap: 6px; }
+.mini-body .row { display: flex; gap: 8px; justify-content: space-between; font-size: 14px; }
+.mini-body .label { color: #bdbdbd; }
+.mini-body .value { color: #e5e5e5; }
+.desc { margin-top: 6px; color: #e5e5e5; font-size: 14px; }
+
+.mini-actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
+.btn.danger { background: #3a1414; border-color: #552222; }
+.btn.danger:hover { background: #4a1a1a; }
+
+/* --- edit modal --- */
+.modal {
+  width: 520px; background: #121212; border: 1px solid #2a2a2a;
+  border-radius: 12px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.modal-title { font-weight: 600; margin-bottom: 12px; }
+.form { display: grid; gap: 10px; }
+.form label { display: grid; gap: 6px; font-size: 14px; }
+.form input, .form textarea, .form select {
+  background: #1a1a1a; border: 1px solid #2a2a2a; color: #e5e5e5;
+  border-radius: 8px; padding: 8px;
+}
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.btn.primary { background: #1f2b52; border-color: #2b3a72; }
+.btn.primary:hover { background: #263463; }
+
+/* --- mini details popup --- */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+  display: grid; place-items: center; z-index: 50;
+}
+
+.mini-card {
+  width: 360px; background: #121212; border: 1px solid #2a2a2a;
+  border-radius: 12px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.mini-header { display: flex; align-items: center; justify-content: space-between; }
+.mini-title { font-weight: 600; font-size: 16px; }
+.icon-btn { border: 1px solid #2a2a2a; background: #1a1a1a; color: #e5e5e5; border-radius: 8px; padding: 4px 8px; cursor: pointer; }
+.icon-btn:hover { background: #242424; }
+
+.mini-body { margin-top: 8px; display: grid; gap: 6px; }
+.mini-body .row { display: flex; gap: 8px; justify-content: space-between; font-size: 14px; }
+.mini-body .label { color: #bdbdbd; }
+.mini-body .value { color: #e5e5e5; }
+.desc { margin-top: 6px; color: #e5e5e5; font-size: 14px; }
+
+.mini-actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
+.btn.danger { background: #3a1414; border-color: #552222; }
+.btn.danger:hover { background: #4a1a1a; }
+
+/* --- edit modal --- */
+.modal {
+  width: 520px; background: #121212; border: 1px solid #2a2a2a;
+  border-radius: 12px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.modal-title { font-weight: 600; margin-bottom: 12px; }
+.form { display: grid; gap: 10px; }
+.form label { display: grid; gap: 6px; font-size: 14px; }
+.form input, .form textarea, .form select {
+  background: #1a1a1a; border: 1px solid #2a2a2a; color: #e5e5e5;
+  border-radius: 8px; padding: 8px;
+}
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.btn.primary { background: #1f2b52; border-color: #2b3a72; }
+.btn.primary:hover { background: #263463; }
