@@ -1,178 +1,180 @@
-# api/src/seed_data.py
-import os
-import sys
-import random
-import string
-import time
-import datetime as dt
-from zoneinfo import ZoneInfo
-
-import requests
+#!/usr/bin/env python3
+import os, sys, random, string, requests
+from typing import Tuple, Dict, Any, List
 
 API_BASE = os.environ.get("API_BASE", "http://localhost:8000")
-SEED_KEY = os.environ.get("SEED_KEY", "dev-seed-only-change-me")  # must match API .env
-
-TZ = ZoneInfo("America/New_York")
 
 ADMIN_EMAIL = "apple@apple.com"
-ADMIN_PASS  = "apple"
-ADMIN_NAME  = "Admin Apple"
+ADMIN_PASS = "apple"
+ADMIN_NAME = "Admin"
+
+BUSY_EMAIL = "busy@demo.com"
+BUSY_PASS = "busy"
+BUSY_NAME = "Busy Person"
+BUSY_START_HOUR = 8
+BUSY_END_HOUR = 22
 
 SAMPLE_COUNT = 20
-SAMPLE_NAME_WORDS = [
-    "Alex","Jordan","Sam","Taylor","Casey","Riley","Morgan","Jamie","Avery","Drew",
-    "Quinn","Skyler","Cameron","Parker","Rowan","Reese","Bailey","Emerson","Hayden","Kendall",
-]
+SAMPLE_EMAIL_DOMAIN = "example.com"
+SAMPLE_NAME_PREFIX = "User"
+SAMPLE_DEFAULT_PASS = "testpass"
 
-def warn_and_confirm():
-    print("="*70)
-    print(" SEEDING WARNING")
-    print("- This will DELETE and RECREATE:")
-    print(f"   - Admin: {ADMIN_EMAIL}")
-    print(f"   - {SAMPLE_COUNT} sample users with random schedules in the current week")
-    print(" - Admin will be friended with every sample user")
-    print(" - Existing accounts with same emails will be removed first")
-    print("-"*70)
-    print(f" API_BASE = {API_BASE}")
-    print(" To continue, type YES (all caps) and press Enter.")
-    print("="*70)
-    choice = input("> ")
-    if choice.strip() != "YES":
-        print("Aborted.")
-        sys.exit(0)
+def _headers(token: str | None = None) -> Dict[str, str]:
+  h = {"Content-Type": "application/json"}
+  if token:
+    h["Authorization"] = f"Bearer {token}"
+  return h
 
-def api_get(path, token=None):
-    r = requests.get(API_BASE + path, headers={"Authorization": f"Bearer {token}"} if token else None)
-    if r.status_code >= 400:
-        raise RuntimeError(f"GET {path}: {r.status_code} {r.text}")
-    return r.json() if r.text else None
+def post(path: str, json: Dict[str, Any] | None = None, token: str | None = None, ok=(200, 201)) -> Dict[str, Any]:
+  url = f"{API_BASE}{path}"
+  r = requests.post(url, json=json or {}, headers=_headers(token))
+  if r.status_code not in ok:
+    raise RuntimeError(f"POST {path}: {r.status_code} {r.text}")
+  try:
+    return r.json()
+  except Exception:
+    return {}
 
-def api_post(path, body=None, token=None, extra_headers=None):
-    headers = {"Content-Type": "application/json"}
-    if token: headers["Authorization"] = f"Bearer {token}"
-    if extra_headers: headers.update(extra_headers)
-    r = requests.post(API_BASE + path, json=body or {}, headers=headers)
-    if r.status_code >= 400:
-        raise RuntimeError(f"POST {path}: {r.status_code} {r.text}")
-    return r.json() if r.text else None
+def register_admin(email: str, password: str, name: str) -> Dict[str, Any]:
+  print(f"[seed] (admin) {email} via /auth/register-admin …")
+  return post("/auth/register-admin", {"email": email, "password": password, "name": name})
 
-def api_delete(path, token=None, extra_headers=None):
-    headers = {}
-    if token: headers["Authorization"] = f"Bearer {token}"
-    if extra_headers: headers.update(extra_headers)
-    r = requests.delete(API_BASE + path, headers=headers)
-    if r.status_code >= 400:
-        raise RuntimeError(f"DELETE {path}: {r.status_code} {r.text}")
-    return r.json() if r.text else None
+def login(email: str, password: str) -> Tuple[str, Dict[str, Any]]:
+  data = post("/auth/login", {"email": email, "password": password})
+  token = data.get("token")
+  user = data.get("user") or {}
+  if not token or not user.get("id"):
+    raise RuntimeError("Login succeeded but response missing token/user")
+  return token, user
 
-def delete_by_email(email):
-    # Seed-key protected destructive endpoint
-    return api_delete(f"/users/by-email?email={email}", extra_headers={"X-Seed-Key": SEED_KEY})
+def register_user(email: str, password: str, name: str) -> Dict[str, Any]:
+  return post("/auth/register", {"email": email, "password": password, "name": name})
 
-def register(email, password, name):
-    return api_post("/auth/register", {"email": email, "password": password, "name": name})
+def ensure_user(email: str, password: str, name: str) -> Tuple[str, Dict[str, Any]]:
+  try:
+    _ = register_user(email, password, name)
+    token, user = login(email, password)
+    print(f"[seed] created {email} id={user['id']}")
+    return token, user
+  except RuntimeError as e:
+    msg = str(e).lower()
+    if "409" in msg or "already" in msg:
+      token, user = login(email, password)
+      print(f"[seed] existing {email} -> logged in id={user['id']}")
+      return token, user
+    raise
 
-def login(email, password):
-    return api_post("/auth/login", {"email": email, "password": password})
+def add_friend(token_admin: str, friend_id: str) -> bool:
+  try:
+    post("/friends/add", {"friendId": friend_id}, token=token_admin)
+    return True
+  except RuntimeError as e:
+    print(f"[seed][warn] /friends/add failed for {friend_id}: {e}")
+    return False
 
-def make_admin(user_id):
-    return api_post("/users/make-admin", {"userId": user_id}, extra_headers={"X-Seed-Key": SEED_KEY})
+def seed_all_week(token_admin: str, clear: bool = True, include_admin: bool = False) -> Dict[str, Any]:
+  data = post("/seed/all", {"mode": "week", "clear": clear, "includeAdmin": include_admin}, token=token_admin)
+  print(f"[seed] /seed/all week -> users={data.get('users')} created={data.get('created')} (includeAdmin={include_admin})")
+  return data
 
-def add_friend(token, friend_id):
-    # Adjust path/payload to your existing friends API
-    return api_post("/friends/add", {"friendId": friend_id}, token=token)
+def seed_full_week_user(token_admin: str, user_id: str, start_hour: int, end_hour: int, clear: bool = True) -> Dict[str, Any]:
+  data = post("/seed/full-week-user", {
+    "userId": user_id,
+    "startHour": start_hour,
+    "endHour": end_hour,
+    "clear": clear
+  }, token=token_admin)
+  print(f"[seed] /seed/full-week-user {user_id} -> created={data.get('created')}")
+  return data
 
-def add_event(token, title, start_iso, end_iso, description=""):
-    # Adjust to your existing events route shape if needed
-    body = {"title": title, "start": start_iso, "end": end_iso, "description": description}
-    return api_post("/events", body, token=token)
+def dedupe_events(token_admin: str) -> Dict[str, Any]:
+  url = f"{API_BASE}/seed/dedupe"
+  r = requests.post(url, json={}, headers=_headers(token_admin))
+  if r.status_code == 404:
+    print("[seed][note] /seed/dedupe not found (skipping).")
+    return {"ok": False, "skipped": True}
+  if r.status_code not in (200, 201):
+    raise RuntimeError(f"POST /seed/dedupe: {r.status_code} {r.text}")
+  data = r.json()
+  print(f"[seed] /seed/dedupe -> removed={data.get('removed')}")
+  return data
 
-def random_email():
-    # unique-ish email to avoid collisions across runs; still deleted if exists
-    suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
-    return f"user_{suffix}@example.com"
+def reset_samples(token_admin: str, extra_emails: List[str]) -> Dict[str, Any]:
+  data = post("/seed/reset-sample", {
+    "domain": SAMPLE_EMAIL_DOMAIN,
+    "emails": extra_emails
+  }, token=token_admin)
+  print(f"[seed] /seed/reset-sample -> users={data.get('removedUsers')} events={data.get('removedEvents')} pulledFrom={data.get('pulledFriendsFrom')}")
+  return data
 
-def random_name():
-    return random.choice(SAMPLE_NAME_WORDS) + " " + random.choice(["Lee", "Rivera", "Singh", "Chen", "Patel", "Diaz", "Kim", "Nguyen", "Brown", "Miller"])
+def random_email() -> str:
+  slug = "".join(random.choices(string.ascii_lowercase + string.digits, k=6))
+  return f"user_{slug}@{SAMPLE_EMAIL_DOMAIN}"
 
-def week_bounds_today():
-    now = dt.datetime.now(TZ)
-    # start of this week (Mon 00:00)
-    start = (now - dt.timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-    end = start + dt.timedelta(days=7)
-    return start, end
+def confirm_banner() -> None:
+  banner = f"""
+ SEEDING WARNING
+ - This will DELETE:
+     • All users ending in @{SAMPLE_EMAIL_DOMAIN}
+     • {BUSY_EMAIL}
+     • {ADMIN_EMAIL}
+   (and all of their events and friend references)
+ - Then it will recreate admin, Busy Person, and {SAMPLE_COUNT} sample users,
+   friend everyone to admin, and seed the current WEEK (≤3 events/day) for ALL (excluding admin).
+ ----------------------------------------------------------------------
+ API_BASE = {API_BASE}
+ To continue, type YES (all caps) and press Enter.
+======================================================================
+> """
+  ans = input(banner).strip()
+  if ans != "YES":
+    print("Aborted.")
+    sys.exit(0)
 
-def rnd_event_blocks_for_week():
-    """
-    Generate 5–10 random events Mon–Fri between 9:00–19:00, 1–3 hours each.
-    Return list of (title, start_iso, end_iso).
-    """
-    week_start, _ = week_bounds_today()
-    events = []
-    n = random.randint(5, 10)
+def main() -> None:
+  confirm_banner()
 
-    for _ in range(n):
-        day_offset = random.randint(0, 6)  # Sun–Sat; change to 0-4 for Mon–Fri
-        hour = random.randint(9, 18)       # start hour
-        dur_hours = random.randint(1, 3)
+  # 0) Ensure we can auth as admin (create or reuse) to run resets
+  created = register_admin(ADMIN_EMAIL, ADMIN_PASS, ADMIN_NAME)
+  print(f"[seed] admin ok: id={created.get('id')} admin={created.get('admin')}")
+  token_admin, admin_user = login(ADMIN_EMAIL, ADMIN_PASS)
+  print(f"[seed] logged in as {admin_user['email']} (admin={admin_user.get('admin')})")
 
-        start_dt = (week_start + dt.timedelta(days=day_offset)).replace(hour=hour, minute=0, second=0, microsecond=0)
-        end_dt = start_dt + dt.timedelta(hours=dur_hours)
+  # 1) Drop previous demo data (admin, busy, and *@example.com)
+  reset_samples(token_admin, [ADMIN_EMAIL, BUSY_EMAIL])
 
-        # Titles
-        title = random.choice([
-            "Class", "Study Session", "Gym", "Work Shift", "Meeting",
-            "Project Time", "Lab", "Office Hours", "Group Study", "Break"
-        ])
-        events.append((
-            title,
-            start_dt.isoformat(),
-            end_dt.isoformat()
-        ))
-    return events
+  # 2) Recreate admin (fresh)
+  created = register_admin(ADMIN_EMAIL, ADMIN_PASS, ADMIN_NAME)
+  print(f"[seed] admin re-created: id={created.get('id')} admin={created.get('admin')}")
+  token_admin, admin_user = login(ADMIN_EMAIL, ADMIN_PASS)
 
-def main():
-    warn_and_confirm()
+  # 3) Busy Person
+  print("[seed] creating Busy Person …")
+  _, busy_user = ensure_user(BUSY_EMAIL, BUSY_PASS, BUSY_NAME)
+  add_friend(token_admin, busy_user["id"])
+  seed_full_week_user(token_admin, busy_user["id"], BUSY_START_HOUR, BUSY_END_HOUR, clear=True)
 
-    # 1) (Re)create admin
-    print(f"[seed] Reset admin {ADMIN_EMAIL}")
-    delete_by_email(ADMIN_EMAIL)  # ignore result
-    reg = register(ADMIN_EMAIL, ADMIN_PASS, ADMIN_NAME)
-    admin_token = reg["token"]
-    admin = reg["user"]
-    make_admin(admin["id"])
-    print(f"[seed] Admin created: {admin['email']} (id={admin['id']})")
+  # 4) Sample users + friend to admin
+  for i in range(1, SAMPLE_COUNT + 1):
+    email = random_email()
+    name = f"{SAMPLE_NAME_PREFIX} {i}"
+    try:
+      _, user_u = ensure_user(email, SAMPLE_DEFAULT_PASS, name)
+      add_friend(token_admin, user_u["id"])
+    except Exception as e:
+      print(f"[seed][warn] sample user {i} failed: {e}")
 
-    # 2) Create 20 users with random schedules
-    created_users = []
-    for i in range(SAMPLE_COUNT):
-        name = random_name()
-        email = random_email()
-        password = "password123"
+  # 5) Seed ALL (exclude admin to avoid piling admin’s events)
+  seed_all_week(token_admin, clear=True, include_admin=False)
 
-        # delete if exists (probably won’t since email is random, but consistent behavior)
-        delete_by_email(email)
+  # 6) De-dupe safety
+  dedupe_events(token_admin)
 
-        r = register(email, password, name)
-        token = r["token"]
-        user = r["user"]
-        print(f"[seed] User {i+1}/{SAMPLE_COUNT}: {user['email']} (id={user['id']})")
-
-        # random events
-        for (title, s_iso, e_iso) in rnd_event_blocks_for_week():
-            add_event(token, title, s_iso, e_iso, description="Seeded")
-
-        created_users.append(user)
-
-    # 3) Admin auto-friends everyone
-    print(f"[seed] Admin friending {len(created_users)} users…")
-    for u in created_users:
-        add_friend(admin_token, u["id"])
-    print("[seed] Done.")
+  print("\n[seed] Done ✔")
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print("ERROR:", e)
-        sys.exit(1)
+  try:
+    main()
+  except Exception as e:
+    print("SEED ERROR:", e)
+    sys.exit(1)

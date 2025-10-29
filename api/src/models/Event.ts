@@ -1,12 +1,30 @@
-import mongoose from "mongoose"
+import mongoose, { Schema, Document } from "mongoose";
 
-const EventSchema = new mongoose.Schema({
-  owner: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
-  title: String,
-  description: String,
-  start: { type: Date, index: true },
-  end: { type: Date, index: true },
-}, { timestamps: true })
+export interface IEvent extends Document {
+  userId: mongoose.Types.ObjectId;
+  title: string;
+  description?: string;
+  start: Date;
+  end: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-export type EventDoc = mongoose.InferSchemaType<typeof EventSchema> & { _id: any }
-export default mongoose.model("Event", EventSchema)
+const EventSchema = new Schema<IEvent>(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: "User", index: true, required: true },
+    title: { type: String, required: true },
+    description: { type: String, default: "" },
+    start: { type: Date, index: true, required: true },
+    end: { type: Date, index: true, required: true },
+  },
+  { timestamps: true }
+);
+
+// Prevent exact duplicates for a user in the same exact window with same title
+EventSchema.index(
+  { userId: 1, start: 1, end: 1, title: 1 },
+  { unique: true, name: "uniq_user_time_title" }
+);
+
+export default mongoose.model<IEvent>("Event", EventSchema);

@@ -88,13 +88,11 @@ export default function App() {
   }
 
   async function loadMe() {
-    // if you have a /auth/me endpoint, you can refresh the 'admin' flag reliably here:
+    // Optional: keep admin flag in sync if your API supports this
     try {
       const data = await api.get("/auth/me")
       if (data?.user) setMe(data.user)
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   }
 
   function logout() {
@@ -250,40 +248,36 @@ export default function App() {
   }
 
   // Seeding actions
-  async function seedMyWeek() {
-    const ok = window.confirm(
-      "⚠ WARNING: This will clear your existing events for THIS WEEK and create random demo events. Continue?"
-    )
-    if (!ok) return
-    await api.post("/seed/my-week", { clear: true })
-    await loadMyEvents()
-    alert("Seeded your week!")
-  }
+async function seedMyWeek() {
+  const ok = window.confirm("⚠ This will clear YOUR current week and add demo events. Continue?");
+  if (!ok) return;
+  await api.post("/seed/my-week", { clear: true });
+  await loadMyEvents();
+  alert("Your week has been seeded.");
+}
 
-  async function seedMyMonth() {
-    const ok = window.confirm(
-      "⚠ WARNING: This will clear your existing events for THIS MONTH and create random demo events. Continue?"
-    )
-    if (!ok) return
-    await api.post("/seed/my-month", { clear: true })
-    await loadMyEvents()
-    alert("Seeded your month!")
-  }
+async function seedMyMonth() {
+  const ok = window.confirm("⚠ This will clear YOUR current month and add demo events. Continue?");
+  if (!ok) return;
+  await api.post("/seed/my-month", { clear: true });
+  await loadMyEvents();
+  alert("Your month has been seeded.");
+}
 
-  async function seedAllPeople(mode: "week" | "month" = "week") {
-    if (!me?.admin) return
-    const ok = window.confirm(
-      `⚠ ADMIN WARNING: This will clear ${mode.toUpperCase()} events for ALL users and create unique random events per user. Continue?`
-    )
-    if (!ok) return
-    await api.post("/seed/all", { clear: true, mode })
-    // Reload mine + any enabled friends
-    await Promise.all([
-      loadMyEvents(),
-      ...Object.keys(enabledFriends).map(fid => loadFriendEvents(fid, enabledFriends[fid]))
-    ])
-    alert(`Seeded ${mode} for all users!`)
-  }
+async function seedAllPeople(mode: "week" | "month") {
+  const ok = window.confirm(`⚠ ADMIN: This will clear ${mode} events for ALL users and add demo events. Continue?`);
+  if (!ok) return;
+  await api.post("/seed/all", { clear: true, mode });
+  // Refresh my + visible friends
+  await Promise.all([
+    loadMyEvents(),
+    ...Object.entries(enabledFriends).map(([fid, enabled]) =>
+      enabled ? loadFriendEvents(fid, true) : Promise.resolve()
+    ),
+  ]);
+  alert(`Seeded ${mode} for all users.`);
+}
+
 
   // Calendar limits & styling helpers
   const min = useMemo(() => new Date(1970, 0, 1, 7, 0, 0), [])
