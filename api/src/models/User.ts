@@ -1,11 +1,22 @@
-import mongoose from "mongoose"
+import mongoose, { Schema, Document } from "mongoose";
 
-const UserSchema = new mongoose.Schema({
-  email: { type: String, unique: true, index: true },
-  name: String,
-  passwordHash: String,
-  friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
-}, { timestamps: true })
+export interface IUser extends Document {
+  email: string;
+  name: string;
+  passwordHash: string;
+  friends: mongoose.Types.ObjectId[];
+  admin?: boolean;
+}
 
-export type UserDoc = mongoose.InferSchemaType<typeof UserSchema> & { _id: any }
-export default mongoose.model("User", UserSchema)
+const UserSchema = new Schema<IUser>(
+  {
+    email: { type: String, unique: true, required: true },
+    name: { type: String, required: true },
+    passwordHash: { type: String, required: true },
+    friends: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    admin: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+
+export default mongoose.model<IUser>("User", UserSchema);

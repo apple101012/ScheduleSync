@@ -1,17 +1,22 @@
-import { Request, Response, NextFunction } from "express"
-import jwt from "jsonwebtoken"
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 
-export type Authed = Request & { userId?: string }
+const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 
-export function requireAuth(req: Authed, res: Response, next: NextFunction) {
-  const h = req.headers.authorization
-  if (!h?.startsWith("Bearer ")) return res.status(401).json({ error: "No token" })
+export interface AuthedRequest extends Request {
+  userId?: string;
+}
+
+export function requireAuth(req: AuthedRequest, res: Response, next: NextFunction) {
+  const auth = req.header("Authorization") || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+
   try {
-    const token = h.slice(7)
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { uid: string }
-    req.userId = payload.uid
-    next()
+    const payload = jwt.verify(token, JWT_SECRET) as any;
+    req.userId = payload.sub;
+    next();
   } catch {
-    res.status(401).json({ error: "Invalid token" })
+    return res.status(401).json({ error: "Unauthorized" });
   }
 }

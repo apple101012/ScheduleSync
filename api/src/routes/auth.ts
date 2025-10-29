@@ -1,35 +1,68 @@
-import { Router } from "express"
-import bcrypt from "bcryptjs"
-import jwt from "jsonwebtoken"
-import { z } from "zod"
-import User from "../models/User"
+import { Router } from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import User from "../models/User";
 
-const router = Router()
-
-const creds = z.object({ email: z.string().email(), password: z.string().min(6), name: z.string().optional() })
+const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
 
 router.post("/register", async (req, res) => {
-  const p = creds.safeParse(req.body)
-  if (!p.success) return res.status(400).json({ error: p.error.flatten() })
-  const { email, password, name } = p.data
-  const exists = await User.findOne({ email })
-  if (exists) return res.status(409).json({ error: "Email already registered" })
-  const passwordHash = await bcrypt.hash(password, 10)
-  const user = await User.create({ email, name: name ?? email.split("@")[0], passwordHash, friends: [] })
-  const token = jwt.sign({ uid: user._id.toString() }, process.env.JWT_SECRET!, { expiresIn: "7d" })
-  res.json({ token, user: { id: user._id, email: user.email, name: user.name } })
-})
+  const { email, password, name } = req.body || {};
+  console.log("[AUTH] /register payload:", { email, name, hasPassword: !!password });
+
+  try {
+    if (!email || !password || !name) {
+      console.warn("[AUTH] /register missing fields");
+      return res.status(400).json({ error: "Missing email, password, or name" });
+    }
+
+    const eLower = String(email).toLowerCase();
+    const existing = await User.findOne({ email: eLower });
+    console.log("[AUTH] existing user?", !!existing);
+
+    if (existing) {
+      return res.status(409).json({ error: "Email already registered" });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    const user = await User.create({ email: eLower, name, passwordHash: hash });
+    const token = jwt.sign({ sub: String(user._id) }, JWT_SECRET, { expiresIn: "7d" });
+
+    console.log("[AUTH] registered:", user.email);
+    return res.json({ token, user: { id: String(user._id), email: user.email, name: user.name } });
+  } catch (e: any) {
+    console.error("[AUTH] /register error:", e?.message || e);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
 
 router.post("/login", async (req, res) => {
-  const p = creds.pick({ email: true, password: true }).safeParse(req.body)
-  if (!p.success) return res.status(400).json({ error: p.error.flatten() })
-  const { email, password } = p.data
-  const user = await User.findOne({ email })
-  if (!user) return res.status(401).json({ error: "Invalid credentials" })
-  const ok = await bcrypt.compare(password, user.passwordHash)
-  if (!ok) return res.status(401).json({ error: "Invalid credentials" })
-  const token = jwt.sign({ uid: user._id.toString() }, process.env.JWT_SECRET!, { expiresIn: "7d" })
-  res.json({ token, user: { id: user._id, email: user.email, name: user.name } })
-})
+  const { email, password } = req.body || {};
+  console.log("[AUTH] /login payload:", { email, hasPassword: !!password });
 
-export default router
+  try {
+    if (!email || !password) {
+      console.warn("[AUTH] /login missing fields");
+      return res.status(400).json({ error: "Missing email or password" });
+    }
+
+    const eLower = String(email).toLowerCase();
+    const user = await User.findOne({ email: eLower });
+    console.log("[AUTH] user found?", !!user);
+
+    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    console.log("[AUTH] password ok?", ok);
+
+    if (!ok) return res.status(401).json({ error: "Invalid credentials" });
+
+    const token = jwt.sign({ sub: String(user._id) }, JWT_SECRET, { expiresIn: "7d" });
+    return res.json({ token, user: { id: String(user._id), email: user.email, name: user.name } });
+  } catch (e: any) {
+    console.error("[AUTH] /login error:", e?.message || e);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+export default router;

@@ -1,29 +1,50 @@
-// src/api.ts
-let TOKEN: string | null = localStorage.getItem("ss_token")
+let token: string | null = null;
+export function setToken(t: string | null) { token = t; if (t) localStorage.setItem("ss_token", t); else localStorage.removeItem("ss_token"); }
 
-export function setToken(t: string | null) {
-  TOKEN = t
-  if (t) localStorage.setItem("ss_token", t)
-  else localStorage.removeItem("ss_token")
-}
+const BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
-const BASE = "http://localhost:8000"
-
-async function request(path: string, init: RequestInit = {}) {
-  const headers: Record<string, string> = { "Content-Type": "application/json" }
-  if (TOKEN) headers["Authorization"] = `Bearer ${TOKEN}`
-  const res = await fetch(BASE + path, { ...init, headers: { ...headers, ...(init.headers || {}) } })
-  if (!res.ok) {
-    const text = await res.text().catch(() => "")
-    throw new Error(text || `HTTP ${res.status}`)
-  }
-  const ct = res.headers.get("content-type") || ""
-  return ct.includes("application/json") ? res.json() : res.text()
+async function handle(res: Response) {
+  const text = await res.text();
+  let body: any = null;
+  try { body = text ? JSON.parse(text) : null; } catch { /* ignore */ }
+  if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}: ${text}`);
+  return body;
 }
 
 export const api = {
-  get: (p: string) => request(p),
-  post: (p: string, body?: any) => request(p, { method: "POST", body: JSON.stringify(body ?? {}) }),
-  put: (p: string, body?: any) => request(p, { method: "PUT", body: JSON.stringify(body ?? {}) }),
-  del: (p: string) => request(p, { method: "DELETE" }),
-}
+  async get(p: string) {
+    const res = await fetch(`${BASE}${p}`, {
+      headers: { Authorization: token ? `Bearer ${token}` : "" }
+    });
+    return handle(res);
+  },
+  async post(p: string, body?: any) {
+    const res = await fetch(`${BASE}${p}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token ? `Bearer ${token}` : ""
+      },
+      body: JSON.stringify(body || {})
+    });
+    return handle(res);
+  },
+  async put(p: string, body?: any) {
+    const res = await fetch(`${BASE}${p}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token ? `Bearer ${token}` : ""
+      },
+      body: JSON.stringify(body || {})
+    });
+    return handle(res);
+  },
+  async del(p: string) {
+    const res = await fetch(`${BASE}${p}`, {
+      method: "DELETE",
+      headers: { Authorization: token ? `Bearer ${token}` : "" }
+    });
+    return handle(res);
+  },
+};

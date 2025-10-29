@@ -1,160 +1,96 @@
-/* App frame (dark) */
-:root { color-scheme: dark; }
-html, body, #root { height: 100%; }
-body { background: #0a0a0a; color: #f5f5f5; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+body, html, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #0b0f17;
+  color: #e2e6ef;
+  font-family: system-ui, sans-serif;
+}
 
 /* Layout */
-.app { min-height: 100vh; display: grid; grid-template-rows: auto 1fr; }
+.app { display: flex; flex-direction: column; height: 100%; }
 .topbar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; border-bottom: 1px solid #242424; background: #0e0e0e;
+  display: flex; justify-content: space-between; align-items: center;
+  background: #111826; padding: 10px 16px; border-bottom: 1px solid #222b3d;
 }
-.brand { font-weight: 600; font-size: 1.1rem; }
+.brand { font-weight: 700; font-size: 18px; }
 .actions { display: flex; gap: 8px; }
-
-.content { display: grid; grid-template-columns: 260px 1fr; height: 100%; }
-.sidebar { border-right: 1px solid #242424; padding: 12px; }
-.section-title { font-size: 12px; letter-spacing: 0.08em; color: #9ca3af; text-transform: uppercase; margin-bottom: 8px; }
-.muted { color: #9ca3af; font-size: 14px; }
-
-.main { padding: 12px; }
-.calendar-card {
-  border: 1px solid #242424; background: #111; border-radius: 16px;
-  overflow: hidden;
+.actions button {
+  padding: 6px 12px; border-radius: 6px;
+  border: 1px solid #2a3140; background: #1a2230;
+  color: #e2e6ef; cursor: pointer;
 }
+.actions button:hover { background: #232c40; }
+.actions .primary { background: #3867ff; border-color: #2f56cc; color: #fff; }
+.actions .outline { background: transparent; }
 
-/* Buttons */
-.btn {
-  padding: 8px 12px; border-radius: 10px; background: #1f1f1f; color: #f5f5f5;
-  border: 1px solid #2a2a2a; cursor: pointer; transition: background .15s ease, border-color .15s ease;
+/* Content */
+.content { flex: 1; display: flex; overflow: hidden; }
+.sidebar {
+  width: 220px; background: #121820;
+  border-right: 1px solid #1f2937; padding: 12px; overflow-y: auto;
 }
-.btn:hover { background: #2a2a2a; border-color: #3a3a3a; }
-
-/* --- mini details popup --- */
-.modal-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.35);
-  display: grid; place-items: center; z-index: 50;
-}
-
-.mini-card {
-  width: 360px; background: #121212; border: 1px solid #2a2a2a;
-  border-radius: 12px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-
-.mini-header { display: flex; align-items: center; justify-content: space-between; }
-.mini-title { font-weight: 600; font-size: 16px; }
-.icon-btn { border: 1px solid #2a2a2a; background: #1a1a1a; color: #e5e5e5; border-radius: 8px; padding: 4px 8px; cursor: pointer; }
-.icon-btn:hover { background: #242424; }
-
-.mini-body { margin-top: 8px; display: grid; gap: 6px; }
-.mini-body .row { display: flex; gap: 8px; justify-content: space-between; font-size: 14px; }
-.mini-body .label { color: #bdbdbd; }
-.mini-body .value { color: #e5e5e5; }
-.desc { margin-top: 6px; color: #e5e5e5; font-size: 14px; }
-
-.mini-actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
-.btn.danger { background: #3a1414; border-color: #552222; }
-.btn.danger:hover { background: #4a1a1a; }
-
-/* --- edit modal --- */
-.modal {
-  width: 520px; background: #121212; border: 1px solid #2a2a2a;
-  border-radius: 12px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-.modal-title { font-weight: 600; margin-bottom: 12px; }
-.form { display: grid; gap: 10px; }
-.form label { display: grid; gap: 6px; font-size: 14px; }
-.form input, .form textarea, .form select {
-  background: #1a1a1a; border: 1px solid #2a2a2a; color: #e5e5e5;
-  border-radius: 8px; padding: 8px;
-}
-.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
-.btn.primary { background: #1f2b52; border-color: #2b3a72; }
-.btn.primary:hover { background: #263463; }
-
-/* --- mini details popup --- */
-.modal-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.35);
-  display: grid; place-items: center; z-index: 50;
-}
-
-.mini-card {
-  width: 360px; background: #121212; border: 1px solid #2a2a2a;
-  border-radius: 12px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-
-.mini-header { display: flex; align-items: center; justify-content: space-between; }
-.mini-title { font-weight: 600; font-size: 16px; }
-.icon-btn { border: 1px solid #2a2a2a; background: #1a1a1a; color: #e5e5e5; border-radius: 8px; padding: 4px 8px; cursor: pointer; }
-.icon-btn:hover { background: #242424; }
-
-.mini-body { margin-top: 8px; display: grid; gap: 6px; }
-.mini-body .row { display: flex; gap: 8px; justify-content: space-between; font-size: 14px; }
-.mini-body .label { color: #bdbdbd; }
-.mini-body .value { color: #e5e5e5; }
-.desc { margin-top: 6px; color: #e5e5e5; font-size: 14px; }
-
-.mini-actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
-.btn.danger { background: #3a1414; border-color: #552222; }
-.btn.danger:hover { background: #4a1a1a; }
-
-/* --- edit modal --- */
-.modal {
-  width: 520px; background: #121212; border: 1px solid #2a2a2a;
-  border-radius: 12px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-.modal-title { font-weight: 600; margin-bottom: 12px; }
-.form { display: grid; gap: 10px; }
-.form label { display: grid; gap: 6px; font-size: 14px; }
-.form input, .form textarea, .form select {
-  background: #1a1a1a; border: 1px solid #2a2a2a; color: #e5e5e5;
-  border-radius: 8px; padding: 8px;
-}
-.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
-.btn.primary { background: #1f2b52; border-color: #2b3a72; }
-.btn.primary:hover { background: #263463; }
-
-/* --- banner shown during "place mode" --- */
-.hint-banner {
-  display: flex; align-items: center; gap: 10px;
-  background: #11161f; border: 1px solid #22304a; color: #dbe5ff;
-  padding: 10px 12px; border-radius: 10px; margin-bottom: 10px;
-  font-size: 14px;
-}
-.hint-banner .dot { width: 8px; height: 8px; border-radius: 999px; background: #5b8cff; display: inline-block; }
-.link-btn { margin-left: auto; background: transparent; border: none; color: #9ec1ff; cursor: pointer; }
-.link-btn:hover { text-decoration: underline; }
-
-/* make the active Add button look outlined */
-.btn-outline { background: transparent; border-color: #3a4e7a; }
-
-/* during placing, give the calendar a subtle focus frame */
-.calendar-card.placing { box-shadow: 0 0 0 2px #2a3a5f inset; }
-
-/* --- Selection outline style (instead of heavy fill) --- */
-.rbc-slot-selection {
-  background: rgba(59, 130, 246, 0.05); /* very light fill */
-  border: 2px dashed #5b8cff;          /* outlined look */
-  color: #cfe0ff;
-}
-
-/* keep the rest of your existing styles … (mini popup, modal, etc.) */
+.section-title { font-size: 13px; text-transform: uppercase; margin-bottom: 6px; color: #9aa4b2; }
 .friend-list { display: grid; gap: 6px; }
-.friend-row { display: grid; grid-template-columns: 16px 10px 1fr; gap: 8px; align-items: center; }
-.busy-dot { width: 10px; height: 10px; border-radius: 999px; }
-.friend-name { font-size: 14px; }
+.friend-row { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.busy-dot { width: 10px; height: 10px; border-radius: 50%; }
+.friend-name { flex: 1; }
 
-.color-chip { display: inline-block; width: 14px; height: 10px; border-radius: 4px; vertical-align: -1px; margin-left: 6px; }
+/* Calendar container */
+.main { flex: 1; overflow: hidden; padding: 10px; }
 
-.error { color: #fca5a5; background: #2a1111; border: 1px solid #7f1d1d; padding: 6px 8px; border-radius: 8px; margin-top: 8px; }
-.add-friend { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-.add-friend .input {
-  background: #0e1320; border: 1px solid #1f2937; color: #d1d5db;
-  border-radius: 10px; padding: 8px 10px; outline: none;
+/* Modal (Login/Register) */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: grid; place-items: center;
+  z-index: 50;
 }
-.add-friend .input:focus { border-color: #334155; }
-.small { font-size: 12px; }
+.modal {
+  width: min(92vw, 440px);
+  background: #101318;
+  border: 1px solid #232936;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+  color: #d6d9e0;
+  padding: 16px;
+}
+.tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+.tabs button {
+  flex: 1; padding: 10px; border-radius: 8px;
+  background: #141a22; border: 1px solid #2a3140;
+  color: #cfd3db; cursor: pointer;
+}
+.tabs button.active { background: #1a2230; border-color: #405275; color: #fff; }
+
+.form { display: grid; gap: 12px; }
+.form label { display: grid; gap: 6px; }
+.form label span { font-size: 13px; color: #9aa4b2; }
+.form input {
+  padding: 10px 12px; border-radius: 8px;
+  border: 1px solid #2a3140; background: #121820;
+  color: #e7ebf3; outline: none;
+}
+.form input:focus { border-color: #4b83ff; }
+.error {
+  background: #2a1316; border: 1px solid #6a1b1f;
+  color: #ffc7cc; border-radius: 8px;
+  padding: 8px 10px; font-size: 13px;
+}
+.modal-actions { margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; }
+.status-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.status-free { background: #0b2312; color: #8ef0b2; border-color: #1e3a2f; }
+.status-busy { background: #2b1012; color: #ffb4bc; border-color: #5a1d23; }
+
+.friend-row .right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
