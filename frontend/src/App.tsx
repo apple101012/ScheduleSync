@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useEffect, useMemo, useState } from "react"
 import {
   Calendar as RBCalendar,
@@ -11,7 +12,6 @@ import { DndProvider } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
 import { format, parse, startOfWeek, getDay } from "date-fns"
 
-import "./rbc-dark.css"
 import "./App.css"
 
 import LoginModal, { type AuthResult } from "./LoginModal"
@@ -54,7 +54,7 @@ export default function App() {
   const [enabledFriends, setEnabledFriends] = useState<Record<string, boolean>>({})
   const [ownerColor, setOwnerColor] = useState<Record<string, string>>({})
 
-  // Add a local sample event when not logged in (for first run UX)
+  // Show a single sample event only when NOT logged in
   useEffect(() => {
     if (localStorage.getItem("ss_token")) return
     const now = new Date()
@@ -63,7 +63,7 @@ export default function App() {
     setEvents([{ id: cryptoId(), title: "Sample Event", start: s, end: e }])
   }, [])
 
-  // Auto-login from stored token if present
+  // Auto-login if token exists
   useEffect(() => {
     const t = localStorage.getItem("ss_token")
     if (!t) return
@@ -83,12 +83,12 @@ export default function App() {
   }
 
   async function initAfterLogin() {
+    // color for my own events
     setOwnerColor(c => ({ ...c, me: "#93c5fd" }))
     await Promise.all([loadMyEvents(), loadFriends(), loadMe()])
   }
 
   async function loadMe() {
-    // Optional: keep admin flag in sync if your API supports this
     try {
       const data = await api.get("/auth/me")
       if (data?.user) setMe(data.user)
@@ -102,9 +102,10 @@ export default function App() {
     setEnabledFriends({})
     setBusy({})
     setOwnerColor({})
-    setEvents([])
+    setEvents([]) // clears sample + my events
   }
 
+  // Load my events
   async function loadMyEvents() {
     const list = await api.get("/events")
     const mapped = (list as any[]).map(e => ({
@@ -118,6 +119,7 @@ export default function App() {
     setEvents(prev => [...prev.filter(ev => ev.ownerId !== "me"), ...mapped])
   }
 
+  // Load friends list + assign colors
   async function loadFriends() {
     const data = await api.get("/friends")
     const arr = data.friends as Friend[]
@@ -136,6 +138,7 @@ export default function App() {
     })
   }
 
+  // Load/clear a friend's events when toggled
   async function loadFriendEvents(fid: string, enable: boolean) {
     if (!enable) {
       setEvents(prev => prev.filter(e => e.ownerId !== fid))
@@ -153,7 +156,7 @@ export default function App() {
     setEvents(prev => [...prev.filter(ev => ev.ownerId !== fid), ...mapped])
   }
 
-  // Busy/Free polling
+  // Busy/Free polling (every 15s)
   useEffect(() => {
     if (!friends.length) return
     let stop = false
@@ -165,22 +168,25 @@ export default function App() {
           updates[f._id] = !!r.busy
         }))
         if (!stop) setBusy(updates)
-      } catch {/* ignore */}
+      } catch { /* ignore */ }
     }
     tick()
     const id = setInterval(tick, 15000)
     return () => { stop = true; clearInterval(id) }
   }, [friends])
 
+  // Add Today / Tomorrow (place mode)
   function startPlaceMode(kind: "today" | "tomorrow") {
     setPendingAddDay(kind)
     const base = new Date()
     if (kind === "tomorrow") base.setDate(base.getDate() + 1)
     setDate(base)
+    // UX: show a tiny inline banner without new CSS classes
+    alert(`Place mode: ${kind}. Click & drag on the calendar to create a block, then you'll be prompted for a title.`)
   }
 
+  // Slot selection -> create event (supports place mode)
   async function onSelectSlot(slot: SlotInfo) {
-    // Place-mode: click-drag a range, then prompt for title
     if (pendingAddDay) {
       const title = prompt("Event title?")
       setPendingAddDay(null)
@@ -195,7 +201,7 @@ export default function App() {
       return
     }
 
-    // Normal quick add
+    // Quick add when not in place mode
     const title = prompt("Event title?", "New Event")
     if (!title) return
     const created = me
@@ -211,6 +217,7 @@ export default function App() {
     setSelected(evt)
   }
 
+  // Drag/Resize handlers
   async function onEventDrop({ event, start, end }: any) {
     setEvents(prev => prev.map(e => e.id === event.id ? { ...e, start, end } : e))
     if (me && event.ownerId === "me") {
@@ -225,6 +232,7 @@ export default function App() {
     }
   }
 
+  // Edit/Delete via mini-popup
   async function updateSelectedTitle() {
     if (!selected) return
     const next = prompt("Edit title", selected.title)
@@ -247,43 +255,42 @@ export default function App() {
     setSelected(null)
   }
 
-  // Seeding actions
-async function seedMyWeek() {
-  const ok = window.confirm("⚠ This will clear YOUR current week and add demo events. Continue?");
-  if (!ok) return;
-  await api.post("/seed/my-week", { clear: true });
-  await loadMyEvents();
-  alert("Your week has been seeded.");
-}
+  // Seeding actions (match server endpoints you already wired)
+  async function seedMyWeek() {
+    const ok = window.confirm("⚠ This will clear YOUR current week and add demo events. Continue?")
+    if (!ok) return
+    await api.post("/seed/my-week", { clear: true })
+    await loadMyEvents()
+    alert("Your week has been seeded.")
+  }
 
-async function seedMyMonth() {
-  const ok = window.confirm("⚠ This will clear YOUR current month and add demo events. Continue?");
-  if (!ok) return;
-  await api.post("/seed/my-month", { clear: true });
-  await loadMyEvents();
-  alert("Your month has been seeded.");
-}
+  async function seedMyMonth() {
+    const ok = window.confirm("⚠ This will clear YOUR current month and add demo events. Continue?")
+    if (!ok) return
+    await api.post("/seed/my-month", { clear: true })
+    await loadMyEvents()
+    alert("Your month has been seeded.")
+  }
 
-async function seedAllPeople(mode: "week" | "month") {
-  const ok = window.confirm(`⚠ ADMIN: This will clear ${mode} events for ALL users and add demo events. Continue?`);
-  if (!ok) return;
-  await api.post("/seed/all", { clear: true, mode });
-  // Refresh my + visible friends
-  await Promise.all([
-    loadMyEvents(),
-    ...Object.entries(enabledFriends).map(([fid, enabled]) =>
-      enabled ? loadFriendEvents(fid, true) : Promise.resolve()
-    ),
-  ]);
-  alert(`Seeded ${mode} for all users.`);
-}
+  async function seedAllPeople(mode: "week" | "month") {
+    const ok = window.confirm(`⚠ ADMIN: This will clear ${mode} events for ALL users and add demo events. Continue?`)
+    if (!ok) return
+    await api.post("/seed/all", { clear: true, mode })
+    await Promise.all([
+      loadMyEvents(),
+      ...Object.entries(enabledFriends).map(([fid, enabled]) =>
+        enabled ? loadFriendEvents(fid, true) : Promise.resolve()
+      ),
+    ])
+    alert(`Seeded ${mode} for all users.`)
+  }
 
-
-  // Calendar limits & styling helpers
+  // Calendar window & scroll prefs
   const min = useMemo(() => new Date(1970, 0, 1, 7, 0, 0), [])
   const max = useMemo(() => new Date(1970, 0, 1, 22, 0, 0), [])
   const scrollTo = useMemo(() => new Date(1970, 0, 1, 9, 0, 0), [])
 
+  // Friend-colored events (dark theme contrast)
   function eventPropGetter(evt: EventItem) {
     const color = evt.ownerId === "me"
       ? (ownerColor["me"] || "#93c5fd")
@@ -331,17 +338,10 @@ async function seedAllPeople(mode: "week" | "month") {
         </div>
       </header>
 
-      {pendingAddDay && (
-        <div className="placing-banner">
-          Place mode: {pendingAddDay === "today" ? "Today" : "Tomorrow"} — click & drag on the calendar to create a block.
-          <button onClick={() => setPendingAddDay(null)} className="link-like">Cancel</button>
-        </div>
-      )}
-
       <div className="content">
         <aside className="sidebar">
           <div className="section-title">Friends</div>
-          {!me && <div className="muted">Login to load friends</div>}
+          {!me && <div style={{ color: "#9aa4b2", fontSize: 14 }}>Login to load friends</div>}
           {me && (
             <>
               <div className="friend-list">
@@ -411,22 +411,22 @@ async function seedAllPeople(mode: "week" | "month") {
         </main>
       </div>
 
-      {/* Event details mini-popup */}
+      {/* Event details mini-popup (uses existing .modal + .modal-actions styles) */}
       {selected && (
         <div className="modal-backdrop" onClick={() => setSelected(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-head">
-              <div className="modal-title">{selected.title}</div>
-              <button className="icon-btn" title="Close" onClick={() => setSelected(null)}>✕</button>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>{selected.title}</div>
+              <button onClick={() => setSelected(null)} style={{ cursor: "pointer" }}>✕</button>
             </div>
-            <div className="modal-body">
-              <div className="modal-row">
-                <div className="label">When</div>
+            <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 12, color: "#9aa4b2" }}>When</div>
                 <div>{formatRange(selected.start, selected.end)}</div>
               </div>
               {selected.description && (
-                <div className="modal-row">
-                  <div className="label">Description</div>
+                <div>
+                  <div style={{ fontSize: 12, color: "#9aa4b2" }}>Description</div>
                   <div>{selected.description}</div>
                 </div>
               )}
@@ -435,7 +435,12 @@ async function seedAllPeople(mode: "week" | "month") {
               {selected.ownerId === "me" && (
                 <>
                   <button className="outline" onClick={updateSelectedTitle}>✏️ Edit Title</button>
-                  <button className="danger" onClick={deleteSelected}>🗑 Delete</button>
+                  <button
+                    onClick={deleteSelected}
+                    style={{ background: "#2b1012", border: "1px solid #5a1d23", color: "#ffb4bc", borderRadius: 8, padding: "6px 12px" }}
+                  >
+                    🗑 Delete
+                  </button>
                 </>
               )}
               <button onClick={() => setSelected(null)}>Close</button>

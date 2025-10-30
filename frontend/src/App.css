@@ -94,3 +94,38 @@ body, html, #root {
   align-items: center;
   gap: 6px;
 }
+/* === react-big-calendar dark fixes === */
+.rbc-calendar { background:#0b1220; color:#e5e7eb; }
+
+/* Month / Week / Day surfaces */
+.rbc-month-view,
+.rbc-time-view,
+.rbc-agenda-view { background:#0b1220; }
+
+.rbc-header {
+  background:#0f172a;
+  color:#cbd5e1;
+  border-bottom:1px solid #1f2937;
+}
+
+/* Days outside the current month */
+.rbc-off-range { color:#6b7280; }
+.rbc-off-range-bg { background:#0b1220 !important; }  /* kill the white */
+
+/* Today highlight */
+.rbc-today { background:rgba(59,130,246,.08) !important; }
+
+/* Grid lines / gutters */
+.rbc-row-bg { background:transparent; }
+.rbc-day-bg + .rbc-day-bg { border-left:1px solid #1f2937; }
+.rbc-month-row + .rbc-month-row { border-top:1px solid #1f2937; }
+.rbc-time-gutter, .rbc-header-gutter { background:#0b1220; }
+.rbc-time-slot { border-top:1px dashed #1f2937; }
+
+/* Event pills / “+N more” / overlays */
+.rbc-event { background:#60a5fa; color:#0b1220; border:none; font-weight:600; }
+.rbc-show-more { color:#60a5fa; background:rgba(96,165,250,.1); }
+.rbc-overlay { background:#111827; color:#e5e7eb; border-color:#374151; }
+
+/* Now indicator */
+.rbc-current-time-indicator { background:#22c55e; }
