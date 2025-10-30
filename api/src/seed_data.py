@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import os, sys, random, string, requests
 from typing import Tuple, Dict, Any, List
+from datetime import datetime, timedelta, timezone
+import zoneinfo
 
 API_BASE = os.environ.get("API_BASE", "http://localhost:8000")
 
@@ -11,8 +13,10 @@ ADMIN_NAME = "Admin"
 BUSY_EMAIL = "busy@demo.com"
 BUSY_PASS = "busy"
 BUSY_NAME = "Busy Person"
-BUSY_START_HOUR = 8
-BUSY_END_HOUR = 22
+# Make the Busy Person busy the entire day so demos and checks that use "busy-now"
+# will reliably detect them as busy regardless of local test time.
+BUSY_START_HOUR = 0
+BUSY_END_HOUR = 24
 
 SAMPLE_COUNT = 20
 SAMPLE_EMAIL_DOMAIN = "example.com"
@@ -150,9 +154,32 @@ def main() -> None:
 
   # 3) Busy Person
   print("[seed] creating Busy Person …")
-  _, busy_user = ensure_user(BUSY_EMAIL, BUSY_PASS, BUSY_NAME)
+  busy_token, busy_user = ensure_user(BUSY_EMAIL, BUSY_PASS, BUSY_NAME)
   add_friend(token_admin, busy_user["id"])
+  # Seed full-week busy blocks as before (keeps busy person busy for full days if configured)
   seed_full_week_user(token_admin, busy_user["id"], BUSY_START_HOUR, BUSY_END_HOUR, clear=True)
+
+  # Also create a small explicit event that overlaps the current local time so
+  # busy-now checks immediately detect the Busy Person as busy regardless of
+  # how the hour-based seeding was applied.
+  # NOTE: we intentionally do NOT create the immediate 'now' event here because
+  # later steps (seed_all_week with clear=True) will delete week-range events for
+  # all users and would remove the marker. We'll add the immediate event after
+  # the global seeding/dedupe steps so it remains present for the demo.
+
+  # Verify via admin that the Busy Person is considered busy right now.
+  try:
+    url = f"{API_BASE}/friends/{busy_user['id']}/busy-now"
+    r = requests.get(url, headers=_headers(token_admin))
+    if r.status_code not in (200, 201):
+      raise RuntimeError(f"GET /friends/{busy_user['id']}/busy-now: {r.status_code} {r.text}")
+    payload = r.json()
+    print(f"[seed] busy-now check -> {payload}")
+    if not payload.get("busy"):
+      raise RuntimeError(f"Busy Person not busy after seeding (busy-now returned {payload})")
+  except Exception as e:
+    print(f"[seed][error] busy-now verification failed: {e}")
+    raise
 
   # 4) Sample users + friend to admin
   for i in range(1, SAMPLE_COUNT + 1):
@@ -169,6 +196,44 @@ def main() -> None:
 
   # 6) De-dupe safety
   dedupe_events(token_admin)
+
+  # After global seeding/dedupe, create an immediate timezone-aware event for
+  # Busy Person so they remain busy at the end of the seeding process (the
+  # earlier attempt was removed by /seed/all which clears the week's events).
+  try:
+    try:
+      local_tz = datetime.now().astimezone().tzinfo
+    except Exception:
+      try:
+        local_tz = zoneinfo.ZoneInfo(os.environ.get('TZ') or 'UTC')
+      except Exception:
+        local_tz = timezone.utc
+    now = datetime.now(tz=local_tz)
+    start = (now - timedelta(minutes=15)).isoformat()
+    end = (now + timedelta(hours=2)).isoformat()
+    ev = post("/events", {
+      "title": "Busy Now (seed)",
+      "description": "Seeder-created busy marker (final)",
+      "start": start,
+      "end": end
+    }, token=busy_token)
+    print(f"[seed] Created final immediate busy event for Busy Person: {ev.get('_id') if isinstance(ev, dict) else ev}")
+
+    # Verify via admin that the Busy Person is considered busy right now.
+    try:
+      url = f"{API_BASE}/friends/{busy_user['id']}/busy-now"
+      r = requests.get(url, headers=_headers(token_admin))
+      if r.status_code not in (200, 201):
+        raise RuntimeError(f"GET /friends/{busy_user['id']}/busy-now: {r.status_code} {r.text}")
+      payload = r.json()
+      print(f"[seed] final busy-now check -> {payload}")
+      if not payload.get("busy"):
+        raise RuntimeError(f"Busy Person not busy after final seeding (busy-now returned {payload})")
+    except Exception as e:
+      print(f"[seed][error] final busy-now verification failed: {e}")
+      raise
+  except Exception as e:
+    print(f"[seed][warn] failed to create final immediate busy event: {e}")
 
   print("\n[seed] Done ✔")
 

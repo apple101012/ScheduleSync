@@ -86,6 +86,62 @@ Next steps (recommended)
 Change log (append-only)
 - 2025-10-30  — Created file and recorded initial snapshot. Implemented seed endpoint fixes and admin seed helpers.
 
+- 2025-10-30 23:46 UTC — Added automated busy-test and made Busy Person busy all day
+  - Files edited:
+    - `api/src/test_busy.py` — added a non-interactive test script that ensures admin and Busy Person exist, creates a timezone-aware event overlapping current local time, and calls `GET /friends/:id/busy-now` to validate busy detection. The test prints the created event and the busy check result.
+    - `api/src/seed_data.py` — changed `BUSY_START_HOUR` to `0` and `BUSY_END_HOUR` to `24` so the Busy Person is seeded as busy for the whole day when running the Python seeder.
+  - Why:
+    - The Busy Person created by the seeder was sometimes not flagged busy at arbitrary test times due to hour ranges; making them busy all day ensures the demo and automated checks reliably detect them as busy.
+  - How I verified:
+    1. Ran `python src/test_busy.py` while the backend dev server was running.
+    2. Observed the script create an explicit timezone-aware event covering "now" and the `/friends/:id/busy-now` endpoint returned `{'busy': True}`.
+  - How to reproduce locally:
+    - Start the backend dev server:
+
+      ```powershell
+      cd api; npm run dev
+      ```
+
+    - Run the seeder (this will recreate demo users and make the Busy Person busy all day):
+
+      ```powershell
+      cd api; python .\src\seed_data.py
+      ```
+
+    - Or run the focused test I added (non-interactive):
+
+      ```powershell
+      cd api; python .\src\test_busy.py
+      ```
+
+  - Notes:
+    - `BUSY_START_HOUR=0` and `BUSY_END_HOUR=24` ensure the busy-blocking covers the full 24 hours; the server stores times in UTC so local timezone conversions are applied when creating events. If you want a narrower busy window later, change the constants back.
+    - I did not commit these changes to git — tell me if you'd like me to prepare a commit message and run git commands.
+
+- 2025-10-30 23:58 UTC — Seeder: create immediate "now" event for Busy Person
+  - Files edited:
+    - `api/src/seed_data.py` — when Busy Person is created, the seeder now also creates a timezone-aware event that overlaps current local time (start = now-15m, end = now+2h) using the Busy Person's token. This ensures `/friends/:id/busy-now` returns true immediately after seeding.
+  - Why:
+    - Some environments/time conversions meant the Busy Person's hour-range events could miss the exact current instant; adding an explicit "now" event guarantees busy detection during demos and automated checks.
+  - How to verify:
+    - Start backend dev server and run the seeder (`python .\src\seed_data.py`) or run the focused test (`python .\src\test_busy.py`). Confirm that `/friends/:id/busy-now` returns `{'busy': True}` for the Busy Person.
+
+- 2025-10-30 23:59 UTC — Seeder: verify busy-now after creating immediate event
+  - Files edited:
+    - `api/src/seed_data.py` — after creating the immediate busy event for Busy Person, the seeder now issues a `GET /friends/:id/busy-now` request (as admin) and verifies the response contains `busy: true`. If not, the seeder raises an error and exits so failures are visible during seeding.
+  - Why:
+    - Automatically verifying busy detection during seeding provides immediate feedback if timezone handling, event creation, or busy calculation logic regressed.
+  - Notes:
+    - The seeder will now fail with an error if busy verification does not succeed. This is intentional for CI/demo reliability. If you'd prefer a non-fatal warning instead, I can change the behavior.
+
+- 2025-10-31 00:10 UTC — Seeder: ensure final immediate busy event persists after global seeding
+  - Files edited:
+    - `api/src/seed_data.py` — moved creation/verification of the immediate "now" event for Busy Person to the end of the seeding flow (after `/seed/all` and `/seed/dedupe`). Previously the immediate event was deleted by the global `/seed/all` clear step; moving it to the end ensures the Busy Person remains busy when seeding finishes.
+  - Why:
+    - The seeder previously created an immediate busy event early in the flow but then called `/seed/all` with clear=True which removed week-range events for all users (including Busy Person), so the marker disappeared. This fix recreates the marker after those destructive steps.
+  - How I verified:
+    - Ran `echo YES | python .\src\seed_data.py` and observed the final busy-now check returns `{'busy': True}` and the user's events list includes the final immediate busy event.
+
 ---
 
 Developer note: from now on, every time I make a change to the repository that affects routes, models, or behavior, I will append a timestamped note to this file describing the change, the files edited, and any verification steps.
