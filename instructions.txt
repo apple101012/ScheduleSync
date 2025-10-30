@@ -145,3 +145,84 @@ Change log (append-only)
 ---
 
 Developer note: from now on, every time I make a change to the repository that affects routes, models, or behavior, I will append a timestamped note to this file describing the change, the files edited, and any verification steps.
+
+- 2025-10-30 00:15 UTC — Backend: documentation update (schema, routes, files changed)
+  - Summary of backend changes since previous snapshot:
+    - Standardized Event ownership field to `userId` across routes and seeders.
+    - Protected seed endpoints with authentication and admin checks where applicable.
+    - Replaced corrupted/fragile seed implementation with a clean, idempotent-friendly set of seed helpers and fixed ordering so demo markers persist.
+    - Added runtime seeder verification: seeder creates a timezone-aware immediate "now" event for Busy Person at the end of the flow and verifies `/friends/:id/busy-now` returns `busy: true`.
+    - Added small dev/test utilities to exercise and debug the busy detection and events listing.
+
+  - Files edited or added (backend):
+    - `api/src/routes/seed.ts` — Rewrote/cleaned seed routes. Implemented endpoints:
+      - `POST /seed/my-week` — generate random events for the authenticated user (hard cap per-day = 5 for client-facing endpoint), idempotency key support via `X-Seed-Req`, optional `clear`/`perDayMax` params, top-up logic to avoid duplicates.
+      - `POST /seed/my-month` — month-based variant.
+      - `POST /seed/all` — admin-only bulk seed for all users (clear option, perDayMax, includeAdmin flag).
+      - `POST /seed/reset-sample` — admin-only destructive reset of demo users (by domain/emails) and their events; also pulls them out of friends arrays.
+      - `POST /seed/full-week-user` — admin-only helper to create busy-blocks for a single user for the week (uses `startHour`/`endHour`, `clear` option).
+      - `POST /seed/dedupe` — admin-only dedupe routine to remove exact duplicate events (same userId + start + end + title).
+
+    - `api/src/routes/events.ts` — Updated event CRUD handlers to use `AuthedRequest` and enforce `userId` scoping for reads/writes/updates/deletes so users cannot affect other users' events. Also fixed usages that previously referenced `owner`/`ownerId`.
+
+    - `api/src/routes/auth.ts` — Added `GET /auth/me` (protected) to return the currently-authenticated user object; small fixes to ensure returned `id` is stringified consistently for frontend use.
+
+    - `api/src/routes/friends.ts` — Kept core friend endpoints; added/verified `GET /friends/:id/busy-now` implementation that checks for an overlapping event (start <= now < end) for the friend id and returns `{ busy: boolean }`.
+
+    - `api/src/models/Event.ts` — Event schema enforced `userId: ObjectId` required and includes a unique index `{ userId, start, end, title }` to avoid exact duplicates. Seed/routes updated to match this shape.
+
+    - `api/src/seed_data.py` — Replaced and iteratively hardened Python seeder used by demos/automation:
+      - Uses `register-admin`, `register`, `login`, `reset-sample`, `full-week-user`, `all`, `dedupe` flows.
+      - Changed Busy Person seed to use `BUSY_START_HOUR = 0` and `BUSY_END_HOUR = 24` (full-day busy) and to create a final immediate timezone-aware busy event AFTER the global `/seed/all` and `/seed/dedupe` steps so it does not get deleted by the bulk clear.
+      - Adds verification of busy detection via admin-side `GET /friends/:id/busy-now` and raises if verification fails (useful for CI/demo reliability).
+      - Still prompts for interactive confirmation; can be run non-interactively by piping `YES` or we can add a `--yes` flag on request.
+
+    - `api/src/test_busy.py` — New focused test script (non-interactive) that ensures admin/busy user exist, creates an explicit timezone-aware event overlapping now for the Busy Person (using that user's token), and calls `/friends/:id/busy-now` as admin to ensure the busy detection works.
+
+    - `api/src/debug_list_events.py` — New debug helper that logs in as admin, looks up Busy Person by email (via `/friends` or `/users`), fetches `GET /events?ownerId=<id>` and `/friends/:id/busy-now` to aid troubleshooting when events are not visible in the frontend.
+
+  - Design & behavioral notes:
+    - Seed endpoints are protected by `requireAuth`. Admin-only endpoints check `user.admin === true` (e.g., `/seed/all`, `/seed/reset-sample`, `/seed/dedupe`, `/seed/full-week-user`).
+    - The client-facing `POST /seed/my-week` clamps `perDayMax` to a maximum of 5 to prevent accidental huge inserts via the UI.
+    - Idempotency support: `X-Seed-Req` header is accepted by seed routes and a short-lived in-memory TTL map is used to make short repeated requests idempotent during development/testing.
+    - Time handling: server stores event times in UTC (ISO); seeder/test scripts create timezone-aware ISO strings using local timezone to ensure busy markers align with local 'now'. The `friends/:id/busy-now` check compares server-time `new Date()` to stored UTC ranges.
+
+  - How to verify (quick checklist):
+    1. Start the backend dev server:
+
+       ```powershell
+       cd api
+       npm run dev
+       ```
+
+    2. Run the seeder (interactive) or non-interactively:
+
+       ```powershell
+       cd api
+       python .\src\seed_data.py        # interactive
+       echo YES | python .\src\seed_data.py  # non-interactive
+       ```
+
+    3. After seeding, verify Busy Person is busy now (admin):
+
+       ```powershell
+       python .\src\debug_list_events.py
+       # or to run the focused test that also creates a transient event:
+       python .\src\test_busy.py
+       ```
+
+    4. Optionally inspect events via the API (admin token) or login as Busy Person in the frontend to see events in the calendar.
+
+  - Files to review for developers (where to look for implementation):
+    - `api/src/routes/seed.ts`
+    - `api/src/routes/events.ts`
+    - `api/src/routes/auth.ts`
+    - `api/src/routes/friends.ts`
+    - `api/src/models/Event.ts`
+    - `api/src/seed_data.py` (Python seeder)
+    - `api/src/test_busy.py`, `api/src/debug_list_events.py` (dev helpers)
+
+  - Suggested follow-ups (optional):
+    - Add a `--yes` CLI flag to `seed_data.py` for scripted CI runs.
+    - Make the final immediate busy event idempotent or automatically cleaned up after verification if you prefer a pristine DB.
+    - Add integration tests that run the seeder against a disposable test DB and assert `busy-now` behavior.
