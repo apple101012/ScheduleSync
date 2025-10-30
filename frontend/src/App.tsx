@@ -250,7 +250,7 @@ export default function App() {
     if (!ok) return
     setEvents(prev => prev.filter(e => e.id !== selected.id))
     if (me && selected.ownerId === "me") {
-      await api.delete(`/events/${selected.id}`)
+      await api.del(`/events/${selected.id}`)
     }
     setSelected(null)
   }

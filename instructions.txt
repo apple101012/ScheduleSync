@@ -1,0 +1,91 @@
+---
+applyTo: '**'
+---
+
+User instruction (keep this at the top):
+
+The file `instructions.txt` is a persistent project log and living documentation. Always update this file whenever you (the assistant) make changes to the project codebase, database schema, routes, or architecture. Include a short summary of what changed, why, files edited, and any steps needed to verify the change. Keep entries chronological with timestamps. Always keep this header at the top.
+
+---
+
+Project snapshot (initial seed) — 2025-10-30
+
+Summary
+- Repo root: ScheduleSync
+- Frontend: React + TypeScript + Vite (frontend/)
+- Backend: Node + Express + TypeScript + Mongoose (api/)
+- Purpose: ScheduleSync / ScheduleComparer — personal calendar + friend sharing + demo seeding
+
+Database schema (core models)
+- User (api/src/models/User.ts)
+  - _id: ObjectId
+  - email: string (unique)
+  - name: string
+  - passwordHash: string
+  - friends: ObjectId[] (refs to User)
+  - admin: boolean
+
+- Event (api/src/models/Event.ts)
+  - _id: ObjectId
+  - userId: ObjectId (ref -> User)  // required
+  - title: string
+  - description?: string
+  - start: Date
+  - end: Date
+  - timestamps: createdAt, updatedAt
+  - unique index: { userId, start, end, title } to avoid exact duplicates
+
+API routes (current, key endpoints)
+- /auth
+  - POST /register
+  - POST /login
+  - POST /register-admin (guarded by env allow flag)
+  - GET /me (added) — returns { user }
+
+- /events (protected; requires Bearer token)
+  - GET /events?ownerId=...  (returns events; ownerId optional)
+  - POST /events  (create event; server sets userId from token)
+  - PUT /events/:id (update event if userId matches)
+  - DELETE /events/:id (delete event if userId matches)
+
+- /friends (protected)
+  - existing endpoints used by frontend: GET /friends, GET /friends/:id/busy-now, POST /friends/add, etc.
+
+- /seed (protected; many admin/client seed helpers)
+  - POST /seed/my-week  { clear?: boolean, perDayMax?: number }  — (now clamps perDayMax <= 5)
+  - POST /seed/my-month { clear?: boolean, perDayMax?: number }
+  - POST /seed/all      { clear?: boolean, perDayMax?: number } (admin only)
+  - POST /seed/reset-sample { domain, emails } (admin only) — remove sample users/events
+  - POST /seed/full-week-user { userId, startHour, endHour, clear } (admin only)
+  - POST /seed/dedupe    (admin only) — remove duplicate events
+
+Recent changes applied (as of this snapshot)
+- Added dark calendar UI and React Query wiring in frontend (multiple files under frontend/src)
+- Installed calendar packages: react-big-calendar, date-fns, @tanstack/react-query, and dev types where needed
+- Added /auth/me endpoint (api/src/routes/auth.ts) so frontend can fetch current user after login
+- Standardized Event model field usage to `userId` across backend routes (api/src/routes/events.ts, api/src/routes/seed.ts)
+- Replaced corrupted seed route with a clean `api/src/routes/seed.ts` that implements: my-week, my-month, all, reset-sample, full-week-user, dedupe. Also clamps my-week perDayMax to 5.
+- Fixed frontend API wrapper call uses (api.del vs api.delete mismatch) in frontend/src/App.tsx
+
+How I verify changes
+- Run backend dev server: cd api && npm run dev (ensure DB connection env vars configured)
+- Run frontend dev server: cd frontend && npm run dev
+- Use Python seeder script api/src/seed_data.py to exercise admin flows (it calls register-admin, register, login, /seed/reset-sample, /seed/full-week-user, /seed/all, /seed/dedupe)
+- Use UI to login and press Seed My Week to confirm 5 events/day cap
+
+Notes & conventions
+- Auth: endpoints expect Bearer token in Authorization header. Middleware populates req.userId from JWT sub.
+- All event queries and writes must be scoped to `userId` to prevent cross-user modifications.
+- Admin checks: endpoints that change many users' data (reset-sample, full-week-user, all, dedupe) must verify user.admin === true.
+- Idempotency: `X-Seed-Req` header is accepted and used by /seed endpoints to avoid accidental duplicate runs (in-memory TTL map used for dev).
+
+Next steps (recommended)
+- (optional) Add integration tests for seed endpoints to assert per-day caps and dedupe behavior.
+- (optional) Add an audit log collection for destructive seed/admin operations (who, when, what) if needed for repeatable demos.
+
+Change log (append-only)
+- 2025-10-30  — Created file and recorded initial snapshot. Implemented seed endpoint fixes and admin seed helpers.
+
+---
+
+Developer note: from now on, every time I make a change to the repository that affects routes, models, or behavior, I will append a timestamped note to this file describing the change, the files edited, and any verification steps.

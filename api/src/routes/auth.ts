@@ -2,6 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
+import { requireAuth, AuthedRequest } from "../middleware/auth";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret";
@@ -87,10 +88,24 @@ router.post("/register-admin", devGuard, async (req, res) => {
       admin: true, // 👈 make admin
     });
 
-    return res.json({ ok: true, id: user._id.toString(), admin: true });
+  return res.json({ ok: true, id: String(user._id), admin: true });
   } catch (e) {
     console.error("[register-admin] error", e);
     return res.status(500).json({ error: "Server error" });
   }
 });
 export default router;
+
+// Protected endpoint for the frontend to fetch the current user
+router.get("/me", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const uid = req.userId;
+    if (!uid) return res.status(401).json({ error: "Unauthorized" });
+    const user = await User.findById(uid).lean();
+    if (!user) return res.status(404).json({ error: "Not found" });
+    return res.json({ user: { id: String(user._id), email: user.email, name: user.name, admin: !!user.admin } });
+  } catch (e) {
+    console.error("/auth/me error", e);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
