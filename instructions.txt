@@ -226,3 +226,130 @@ Developer note: from now on, every time I make a change to the repository that a
     - Add a `--yes` CLI flag to `seed_data.py` for scripted CI runs.
     - Make the final immediate busy event idempotent or automatically cleaned up after verification if you prefer a pristine DB.
     - Add integration tests that run the seeder against a disposable test DB and assert `busy-now` behavior.
+
+- 2025-10-31  — Frontend: documentation and mapping to backend
+  - Summary:
+    - Frontend app lives in `frontend/` and is a React + TypeScript + Vite single-page app.
+    - Key UI pieces: calendar (react-big-calendar + DnD), login/register modal, friend list & busy indicators, add-friend form, seeding buttons for demo data.
+    - Styling: `frontend/src/App.css` plus `rbc-dark.css` provide the dark theme and react-big-calendar fixes.
+
+  - Files of interest (frontend):
+    - `frontend/src/App.tsx` — main application. Responsible for:
+      - App state: `me`, `friends`, `events`, `busy` map, `enabledFriends`, `ownerColor`, calendar view/date state.
+      - Auto-login on token (reads `localStorage.ss_token`, calls `apiSetToken`), runs `initAfterLogin()` which loads user data and events.
+      - `loadMyEvents()` calls `GET /events` and maps returned events into local shape (uses `_id` -> `id`, `start`/`end` -> Date objects). Note: frontend uses a sentinel `ownerId: "me"` for user's own events.
+      - `loadFriends()` calls `GET /friends` and assigns colors from `FRIEND_COLORS` into `ownerColor`.
+      - `loadFriendEvents(fid, enable)` calls `GET /events?ownerId=<fid>` to fetch a friend's events and merges them into `events` state (ownerId is set to the friend's id in the mapped events).
+      - Busy polling: an effect iterates through `friends` and periodically (every 15s) calls `GET /friends/:id/busy-now` to populate the `busy` map used by the sidebar UI.
+      - Event CRUD wiring: `POST /events` (create), `PUT /events/:id` (update), `DELETE /events/:id` (delete). When creating/updating/deleting the app updates local `events` state and calls the backend when `me` is present.
+      - Seeding UI actions: `seedMyWeek()` -> `POST /seed/my-week`, `seedMyMonth()` -> `POST /seed/my-month`, `seedAllPeople(mode)` -> `POST /seed/all` (admin). After seeding the UI reloads events/friends as needed.
+      - Drag & drop / resize: uses react-big-calendar's DnD wrappers; handlers call `PUT /events/:id` for persisted changes when the event belongs to the signed-in user.
+      - Login/registration: `onAuthed()` receives `AuthResult` from `LoginModal`, stores token via `apiSetToken`, sets `me` and calls `initAfterLogin()`.
+
+    - `frontend/src/App.css` — global/dark theme + react-big-calendar specific tweaks (colors, now-indicator color, overlays, month/week/day surfaces). This file contains the friend list styles (busy-dot, friend-row), modal styles, and overrides for `.rbc-*` classes.
+
+    - `frontend/src/LoginModal.tsx` — login/register modal. Posts to `/auth/login` or `/auth/register` via `api.post` and calls `setToken`/`onAuthed` on success. Expects server to return `{ token, user }`.
+
+    - `frontend/src/AddFriendForm.tsx` — small form that posts `POST /friends/add` with `{ email }`. Calls `onAdded()` after success (UI refresh).
+
+    - `frontend/src/api.ts` (present in repo) — API wrapper used by frontend. Responsibilities:
+      - setToken / apiSetToken helpers to store/remove token and set Authorization header for subsequent calls.
+      - convenience methods `get`, `post`, `put`, `del` used throughout `App.tsx` and components. Ensure this wrapper returns parsed JSON and throws on non-200s so components can surface errors.
+
+    - `frontend/src/main.tsx` — bootstraps React and renders `App` inside the DOM root; applies global CSS including `rbc-dark.css`.
+
+  - Frontend → Backend mapping (summary of endpoints used by UI):
+    - Authentication
+      - POST `/auth/login` — Login (LoginModal)
+      - POST `/auth/register` — Register (LoginModal)
+      - GET `/auth/me` — Fetch current user on app startup (App.initAfterLogin -> `loadMe`)
+
+    - Events
+      - GET `/events` — Used by `loadMyEvents()` to get the signed-in user's events.
+      - GET `/events?ownerId=<friendId>` — Used by `loadFriendEvents()` to load events for a friend into the calendar.
+      - POST `/events` — Create event (used when user creates an event via calendar slot selection).
+      - PUT `/events/:id` — Update event (drag/resize/inline edit flow for user's events).
+      - DELETE `/events/:id` — Delete event (via popup in UI).
+
+    - Friends
+      - GET `/friends` — Load friend list (used by `loadFriends()`; populates sidebar list and `enabledFriends`).
+      - GET `/friends/:id/busy-now` — Busy check (polled every 15s by the UI; result is `{ busy: boolean }`).
+      - POST `/friends/add` — Add a friend by email (AddFriendForm).
+
+    - Seed/demo
+      - POST `/seed/my-week`, `/seed/my-month` — client-facing seeding actions triggered by UI buttons (confirmations shown). These endpoints are implemented in `api/src/routes/seed.ts` and the frontend calls them and then reloads events.
+      - POST `/seed/all` — admin seed action (UI calls via `seedAllPeople`) and then refreshes UI.
+
+  - Data shapes & notes (frontend expectations)
+    - Event objects returned by backend must include `_id`, `title`, `start`, `end`, `description?`, and `userId`.
+      - The frontend maps `_id` -> `id` and converts `start`/`end` to JS Date objects before adding to the calendar.
+      - For the user's own events App uses `ownerId: "me"` so they render with the personal color; friend events use the friend's `_id` as the `ownerId` for color/keying.
+    - Friend objects returned by `GET /friends` should include `_id`, `name`, `email`.
+    - Auth result expected shape: `{ token: string, user: { id, email, name, admin? } }`.
+
+  - UX behaviors to be aware of
+    - When not logged in the app shows a single sample event in `events` state so the calendar isn't empty.
+    - Seeding actions prompt for confirmation in the UI. After seeding the app reloads relevant events (my events and any enabled friend events).
+    - The busy indicator in the sidebar is updated via periodic polling; the frequency is currently 15s. Consider debouncing or server push (WebSocket) for scale.
+
+  - How to verify frontend ↔ backend quickly
+    1. Start backend dev server (api):
+
+       ```powershell
+       cd api; npm run dev
+       ```
+
+    2. Start frontend dev server (frontend):
+
+       ```powershell
+       cd frontend; npm run dev
+       ```
+
+    3. Open the app in the browser. If you have a demo admin account seeded, login via the modal. Otherwise run the Python seeder to create demo users/events:
+
+       ```powershell
+       cd api; echo YES | python .\src\seed_data.py
+       ```
+
+    4. After login the app should automatically fetch `/auth/me`, `/events`, and `/friends`. Use the browser network inspector to confirm the following requests succeed and return expected shapes:
+       - `GET /auth/me` -> `{ user }`
+       - `GET /events` -> `[{ _id, userId, title, start, end, ... }]`
+       - `GET /friends` -> `{ friends: [ { _id, name, email } ] }`
+       - `GET /friends/:id/busy-now` -> `{ busy: boolean }` (polled every 15s)
+
+    5. Click the seed buttons in the UI (Seed My Week / Seed My Month). Confirm `POST /seed/my-week`/`POST /seed/my-month` was called and then `GET /events` updated the calendar.
+
+  - Files to review (frontend):
+    - `frontend/src/App.tsx` — primary app logic, event mapping, polling, seeding UI handlers.
+    - `frontend/src/LoginModal.tsx` — login/register flow.
+    - `frontend/src/AddFriendForm.tsx` — friend addition UI.
+    - `frontend/src/api.ts` — API wrapper (token handling and HTTP helpers).
+    - `frontend/src/App.css` and `frontend/src/rbc-dark.css` — styling and calendar theme fixes.
+
+  - Suggested frontend follow-ups (optional):
+    - Add explicit TypeScript types for API responses (EventDTO, UserDTO, FriendDTO) and use them across the frontend so mapping mistakes are caught at compile time.
+    - Show better error UI when network calls fail (toasts or inline messages) instead of console-only errors.
+    - Reduce busy polling frequency or replace with a server push mechanism for scalability/testing (WebSocket/Socket.IO or server-sent events).
+    - Make the `enabledFriends` default deterministic (persist in localStorage) so users see the same friend toggles across reloads.
+
+  - How this ties to backend expectations (recap):
+    - The frontend expects the backend to expose the authentication endpoints (`/auth/*`), event CRUD (`/events*`), friends endpoints (`/friends*`) and the seed endpoints used for demos. The backend changes already implemented (see backend section above) provide these endpoints and the event/user shapes the frontend expects.
+
+  - Verification note:
+    - If you see events in the backend (via `debug_list_events.py` or direct DB inspection) but the frontend doesn't render them, check that the backend returns events with ISO `start`/`end` strings (not nested objects) and that the frontend is converting those strings into `Date` objects. Also confirm `ownerId`/`userId` mismatch: frontend expects `user` events via `GET /events` (no ownerId) and friend events via `GET /events?ownerId=<id>`.
+
+---
+
+Update complete: frontend docs appended and mapped to backend routes. Run the verification checklist above to confirm end-to-end behavior.
+
+- 2025-10-31 02:10 UTC — Frontend: remove sample event after login
+  - Files edited:
+    - `frontend/src/App.tsx` — updated `initAfterLogin()` to call `setEvents([])` before loading server data. This clears the in-memory sample event that the app shows to anonymous users so it no longer persists after a user logs in.
+  - Why:
+    - Previously the sample event was added on first load when no token existed and it could remain in the `events` state after the user logged in because `loadMyEvents()` only replaces events with `ownerId === "me"`. Clearing `events` before fetching server-side events ensures the demo sample doesn't remain visible or block edits.
+  - How to verify:
+    1. Start backend and frontend dev servers.
+    2. Open the app in a new incognito window (no token) — you should see the sample event.
+    3. Login via the modal. After successful login the sample event should disappear and your real events (from `GET /events`) should load.
+  - Notes:
+    - This change clears the entire `events` state briefly on login; since we immediately reload server events and friend events, the UI will repopulate. If you prefer a more surgical removal (only remove events without `ownerId`), I can implement that instead.

@@ -83,6 +83,11 @@ export default function App() {
   }
 
   async function initAfterLogin() {
+    // Clear any demo/sample events that were present before login,
+    // then set my color and load server data. This ensures the single
+    // in-memory sample event shown to anonymous users doesn't persist
+    // after authentication.
+    setEvents([])
     // color for my own events
     setOwnerColor(c => ({ ...c, me: "#93c5fd" }))
     await Promise.all([loadMyEvents(), loadFriends(), loadMe()])
