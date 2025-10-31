@@ -10,8 +10,17 @@ const router = Router();
 router.post("/add", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const userId = new mongoose.Types.ObjectId(req.userId);
-    const { friendId } = req.body || {};
-    if (!friendId) return res.status(400).json({ error: "Missing friendId" });
+    let { friendId, email } = req.body || {};
+
+    // Accept either a friendId (preferred) or an email (convenience from UI).
+    if (!friendId && !email) return res.status(400).json({ error: "Missing friendId or email" });
+
+    // If email was provided, resolve to a user id
+    if (!friendId && email) {
+      const u = await User.findOne({ email: (email as string).toLowerCase() }).select("_id").lean();
+      if (!u) return res.status(404).json({ error: "User not found by email" });
+      friendId = u._id.toString();
+    }
 
     const fid = new mongoose.Types.ObjectId(friendId);
     if (fid.equals(userId)) return res.status(400).json({ error: "Cannot friend yourself" });

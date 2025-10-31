@@ -353,3 +353,16 @@ Update complete: frontend docs appended and mapped to backend routes. Run the ve
     3. Login via the modal. After successful login the sample event should disappear and your real events (from `GET /events`) should load.
   - Notes:
     - This change clears the entire `events` state briefly on login; since we immediately reload server events and friend events, the UI will repopulate. If you prefer a more surgical removal (only remove events without `ownerId`), I can implement that instead.
+
+- 2025-10-31 23:40 UTC — Backend: allow adding friend by email
+  - Files edited:
+    - `api/src/routes/friends.ts` — updated `POST /friends/add` to accept either `{ friendId }` (preferred) or `{ email }` from the request body. If `email` is provided the route looks up the user by email and resolves the id before adding the friendship.
+  - Why:
+    - The frontend `AddFriendForm` posts `{ email }` but the server previously required `friendId`. That mismatch caused 400 responses like `Missing friendId`. Allowing `email` makes the UI flow work without extra lookups.
+  - How to verify:
+    1. Restart the backend dev server.
+    2. Login as a user in the frontend and use the Add Friend form to submit a demo email (for example `user_b78c9l@example.com`).
+    3. Confirm `POST /friends/add` returns `{ ok: true }` and that `GET /friends` now includes the added friend.
+  - Notes:
+    - Emails are matched case-insensitively by lowercasing before lookup.
+    - The route still accepts `friendId` for scripts and internal calls (seeders/tests) that already provide IDs.
