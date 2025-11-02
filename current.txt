@@ -1,0 +1,111 @@
+Current project snapshot — (last updated: 2025-11-01)
+
+Summary
+- Repo root: ScheduleSync
+- Frontend: React + TypeScript + Vite (folder: `frontend/`)
+- Backend: Node.js + Express + TypeScript + Mongoose (folder: `api/`)
+- Purpose: ScheduleSync — personal calendar with friend sharing, demo seeding, and admin tooling (impersonation, seed controls).
+
+Database & Time handling
+- Primary DB: MongoDB (default connection used in dev: `mongodb://127.0.0.1:27017/schedulesync`).
+- Timezone: server stores event date-times as UTC ISO strings; seeders/tests create timezone-aware ISO timestamps using local timezone to match "now" for demos. Busy checks are performed using server `new Date()` against stored UTC ranges.
+
+Core schema (models)
+- User (`api/src/models/User.ts`)
+  - _id: ObjectId
+  - email: string (unique, stored lowercase)
+  - name: string
+  - passwordHash: string
+  - friends: ObjectId[] (refs -> User)
+  - admin: boolean
+
+- Event (`api/src/models/Event.ts`)
+  - _id: ObjectId
+  - userId: ObjectId (ref -> User)  // required and used for scoping all event operations
+  - title: string
+  - description?: string
+  - start: Date (UTC ISO)
+  - end: Date (UTC ISO)
+  - timestamps: createdAt, updatedAt
+  - unique index: { userId, start, end, title } to avoid exact duplicates
+
+Backend: key files & routes (where to look)
+- `api/src/routes/auth.ts` — login/register, `GET /auth/me`, and admin `POST /auth/impersonate` (issues a JWT for the target user when called by an admin).
+- `api/src/routes/events.ts` — protected CRUD for events. All operations are scoped to `userId` taken from the JWT-subject.
+- `api/src/routes/friends.ts` — friend list, `GET /friends`, `GET /friends/:id/busy-now`, `POST /friends/add` (accepts `friendId` or `email`).
+- `api/src/routes/seed.ts` — seeding helpers used to populate demo data: `POST /seed/my-week`, `/seed/my-month`, `/seed/all`, `/seed/reset-sample`, `/seed/full-week-user`, `/seed/dedupe`.
+- `api/src/seed_data.py` — Python seeder used by demos/automation; creates demo users (including a Busy Person), creates a guaranteed immediate "now" event for busy detection, and verifies `GET /friends/:id/busy-now` at the end of the flow.
+
+Frontend: folder structure & important files
+- `frontend/` — Vite + React + TypeScript app
+  - `index.html` — app HTML entry
+  - `package.json` — frontend dependencies and scripts
+  - `vite.config.ts` — Vite config
+  - `tsconfig.json` / `tsconfig.app.json` — TypeScript config
+  - `public/` — static assets
+  - `src/`
+    - `main.tsx` — app bootstrap
+    - `App.tsx` — main application: calendar, friends sidebar, seeding buttons, login modal orchestration, impersonation hooks. Key behaviors:
+      - Clears in-memory sample event on login (`setEvents([])` in `initAfterLogin()`).
+      - Provides admin-only "Impersonate" button per friend (calls `POST /auth/impersonate`), saves original admin token to `localStorage.ss_admin_token` to allow revert.
+      - Renders calendar using `react-big-calendar` + DnD and maps backend events to the calendar items.
+    - `api.ts` — small wrapper for calling backend endpoints with Authorization header
+    - `AddFriendForm.tsx` — posts `{ email }` to `POST /friends/add` (server supports `email` or `friendId`).
+    - `LoginModal.tsx` — login/register UI that returns `{ token, user }` and calls `setToken`/`onAuthed`.
+    - `App.css` & `rbc-dark.css` (or equivalent) — dark theme plus react-big-calendar overrides.
+
+Frontend dependencies and notes
+- Calendar: `react-big-calendar` with DnD addon; `date-fns` used for date utilities.
+- React Query (`@tanstack/react-query`) is optionally used for some data fetching patterns in the UI.
+- TypeScript: the app enforces types; after recent edits there are known typing mismatches between the app's `Event` shape and `react-big-calendar`'s TypeScript event signatures — these are compile-time issues to tidy (they do not necessarily block runtime but should be fixed for clean builds).
+
+CSS & UI notes
+- `frontend/src/App.css` — global styling including dark theme and calendar color tokens.
+- The project includes overrides for `.rbc-*` classes to theme react-big-calendar. The topbar, friend-sidebar, and "busy dot" styles live in `App.css`.
+- The calendar shows current user's events in a primary color; friend events use friend-specific color keys (ownerId-based coloring). Now-indicator and event overlays are styled in the CSS.
+
+Dev/test utilities
+- `api/src/test_busy.py` — focused test that creates an explicit timezone-aware event overlapping now for the Busy Person and verifies `/friends/:id/busy-now` returns `busy: true`.
+- `api/src/debug_list_events.py` — helper to list events for a user and call `busy-now`, useful when investigating missing events.
+
+Conventions & behavioral contracts
+- Auth: endpoints expect `Authorization: Bearer <token>`; middleware verifies the JWT and sets `req.userId = payload.sub`.
+- All event writes/reads must be scoped to `userId` (server enforces this).
+- Admin checks: endpoints that affect many users or destructive actions must verify `user.admin === true` (e.g., `/seed/all`, `/seed/reset-sample`, `/seed/dedupe`, `/auth/impersonate`).
+- Seeder idempotency: `X-Seed-Req` header is used by some seed routes to provide short-term idempotency in dev (in-memory TTL map).
+
+Assistant prompt (when you ask me to make a change)
+Whenever you (or I) open `current.txt`, follow these steps automatically for any requested code/config change:
+
+1) Update plan & todos
+  - Create/update the repository todo list describing the discrete steps I will take.
+
+2) Make the change
+  - Edit the relevant files using precise, minimal diffs.
+  - If adding new env variables, add a placeholder `.env.example` or `.env` with noted placeholders.
+
+3) Update docs
+  - Append a timestamped entry to `instructions.txt` describing what changed, why, files edited, and how to verify. This is mandatory for every change affecting routes, models, or behavior.
+  - Update `current.txt` to reflect the new state if the change affects schema, file layout, or frontend behavior.
+
+4) Verify quickly
+  - Run fast local checks: TypeScript typecheck (`tsc --noEmit` or `npm run build` in frontend if available), and run any small unit or seeder test (`api/src/test_busy.py`) if relevant and fast.
+  - If edits touch frontend types or `react-big-calendar` mappings, run the frontend type-check/build and fix obvious typing mismatches.
+
+5) Report back
+  - Provide a concise summary of edits, the changed files list, verification steps and results (PASS / FAIL for quick gates). If anything fails and can't be fixed quickly, report the failing output and proposed next steps.
+
+6) Do NOT commit or push without explicit instruction from you. I can prepare a commit message and diff on request.
+
+Quick checklist to include in `instructions.txt` entries (every change):
+- Timestamp (UTC)
+- Short description (1 line)
+- Files edited/created
+- Why (intent / bugfix / feature)
+- How I verified (commands run or tests)
+- Any follow-ups or security notes
+
+Final note (policy for this repo)
+- Always append changelogs to `instructions.txt` for every code/config change that affects routes, schema, or runtime behavior. `current.txt` is a developer snapshot for quick context; keep it up-to-date after major changes.
+
+End of `current.txt` snapshot.
