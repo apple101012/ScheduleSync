@@ -366,3 +366,13 @@ Update complete: frontend docs appended and mapped to backend routes. Run the ve
   - Notes:
     - Emails are matched case-insensitively by lowercasing before lookup.
     - The route still accepts `friendId` for scripts and internal calls (seeders/tests) that already provide IDs.
+
+- 2025-11-01  — Seeder: make initial busy-now check non-fatal
+  - Files edited:
+    - `api/src/seed_data.py` — changed the early `busy-now` verification (performed immediately after `/seed/full-week-user`) to be non-fatal: when the check returns `busy: false` or errors, the seeder now logs a warning and continues. The seeder still creates a guaranteed immediate busy event for the Busy Person later in the flow and performs a final fatal verification there.
+  - Why:
+    - In some timezone/server configurations the week-based busy blocks created by `/seed/full-week-user` may not overlap the exact server `now` instant, causing the initial check to fail spuriously and abort the seeding run. Making this initial check non-fatal prevents unnecessary failures while preserving the stronger final verification after creating an explicit immediate event.
+  - How to verify:
+    1. Run the seeder interactively or non-interactively and observe that if the early busy-now check returns false, the seeder prints a warning and continues to create the final immediate event and then performs the final busy-now check which must pass (or the seeder will abort).
+  - Notes:
+    - This is a pragmatic reliability fix for the seeder; if you prefer a stricter check earlier in the flow we can instead adjust the full-week seed to create timezone-aware day ranges that guarantee overlap with server 'now'.
