@@ -376,3 +376,24 @@ Update complete: frontend docs appended and mapped to backend routes. Run the ve
     1. Run the seeder interactively or non-interactively and observe that if the early busy-now check returns false, the seeder prints a warning and continues to create the final immediate event and then performs the final busy-now check which must pass (or the seeder will abort).
   - Notes:
     - This is a pragmatic reliability fix for the seeder; if you prefer a stricter check earlier in the flow we can instead adjust the full-week seed to create timezone-aware day ranges that guarantee overlap with server 'now'.
+
+- 2025-11-01  — Frontend/Backend: admin impersonation (emulate user)
+  - Summary:
+    - Added an admin-only impersonation feature so administrators can emulate a normal user for debugging or demos. Admins can click "Impersonate" next to a friend in the sidebar to become that user.
+  - Files edited:
+    - `api/src/routes/auth.ts` — added `POST /auth/impersonate` (admin-only) that accepts `{ userId }` and returns a JWT and user object for the target user.
+    - `frontend/src/App.tsx` — added UI button "Impersonate" next to each friend when the signed-in user is an admin. Added `impersonateUser()` and `revertImpersonation()` handlers. The admin token is saved under `localStorage.ss_admin_token` when impersonation starts so the admin can revert back.
+  - How it works (frontend):
+    - Admin clicks "Impersonate" next to a friend.
+    - Frontend calls `POST /auth/impersonate` with `{ userId }`.
+    - Server returns `{ token, user }` for the target user.
+    - Frontend stores the current admin token in `localStorage.ss_admin_token` (if not already present), replaces `localStorage.ss_token` with the impersonation token, updates `api` token via `apiSetToken`, and calls `initAfterLogin()` to load events/friends as the impersonated user.
+    - While impersonating a small "Revert" button appears in the topbar. Clicking it restores the original admin token from `ss_admin_token` and reloads the admin session.
+  - Security notes:
+    - `/auth/impersonate` is protected by `requireAuth` and checks `user.admin === true` before issuing a token for the target user. Only admins can impersonate.
+    - The admin's original token is stored in `localStorage.ss_admin_token` on the client; this is convenient for demos but not secure for production. If you want a safer flow, we can implement a server-side session-based impersonation or a short-lived audit log of impersonation events.
+  - How to verify:
+    1. Start backend and frontend.
+    2. Login as an admin.
+    3. In the friends sidebar, click "Impersonate" for a demo user. Confirm the app reloads as that user (topbar shows Logout/Revert and `GET /events` returns that user's events).
+    4. Click "Revert" to return to the admin account.

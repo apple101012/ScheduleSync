@@ -94,6 +94,28 @@ router.post("/register-admin", devGuard, async (req, res) => {
     return res.status(500).json({ error: "Server error" });
   }
 });
+
+// POST /auth/impersonate { userId }
+// Admin-only: returns a JWT for the target user so admins can impersonate for debugging/demo.
+router.post("/impersonate", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const adminId = req.userId;
+    if (!adminId) return res.status(401).json({ error: "Unauthorized" });
+    const adminUser = await User.findById(adminId).lean();
+    if (!adminUser || !adminUser.admin) return res.status(403).json({ error: "forbidden" });
+
+    const { userId } = req.body || {};
+    if (!userId) return res.status(400).json({ error: "userId required" });
+    const target = await User.findById(userId).lean();
+    if (!target) return res.status(404).json({ error: "target user not found" });
+
+    const token = jwt.sign({ sub: String(target._id) }, JWT_SECRET, { expiresIn: "7d" });
+    return res.json({ token, user: { id: String(target._id), email: target.email, name: target.name, admin: !!target.admin } });
+  } catch (e) {
+    console.error("/auth/impersonate error", e);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
 export default router;
 
 // Protected endpoint for the frontend to fetch the current user

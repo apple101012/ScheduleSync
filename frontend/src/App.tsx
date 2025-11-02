@@ -47,6 +47,7 @@ export default function App() {
   const [pendingAddDay, setPendingAddDay] = useState<null | "today" | "tomorrow">(null)
 
   const [me, setMe] = useState<User | null>(null)
+  const [isImpersonating, setIsImpersonating] = useState<boolean>(() => !!localStorage.getItem("ss_admin_token"))
   const [showLogin, setShowLogin] = useState<boolean>(false)
 
   const [friends, setFriends] = useState<Friend[]>([])
@@ -80,6 +81,39 @@ export default function App() {
     setMe(res.user)
     setShowLogin(false)
     await initAfterLogin()
+  }
+
+  // Admin -> impersonate a user (obtain a token for target user)
+  async function impersonateUser(targetId: string) {
+    if (!me?.admin) return
+    const ok = window.confirm("Impersonate this user? You will become them until you revert.")
+    if (!ok) return
+    try {
+      // save current admin token so we can revert
+      const prev = localStorage.getItem("ss_token") || ""
+      if (!localStorage.getItem("ss_admin_token")) localStorage.setItem("ss_admin_token", prev)
+      const resp: any = await api.post("/auth/impersonate", { userId: targetId })
+      if (!resp?.token) throw new Error("Impersonation failed")
+      apiSetToken(resp.token)
+      localStorage.setItem("ss_token", resp.token)
+      setMe(resp.user)
+      setIsImpersonating(true)
+      await initAfterLogin()
+    } catch (e: any) {
+      alert(e?.message || "Failed to impersonate user")
+    }
+  }
+
+  async function revertImpersonation() {
+    const orig = localStorage.getItem("ss_admin_token")
+    if (!orig) return
+    apiSetToken(orig)
+    localStorage.setItem("ss_token", orig)
+    localStorage.removeItem("ss_admin_token")
+    setIsImpersonating(false)
+    try {
+      await initAfterLogin()
+    } catch { /* ignore */ }
   }
 
   async function initAfterLogin() {
@@ -339,7 +373,12 @@ export default function App() {
           )}
           {!me
             ? <button className="primary" onClick={() => setShowLogin(true)}>Login</button>
-            : <button onClick={logout}>Logout</button>}
+            : (
+              <>
+                {isImpersonating && <button onClick={revertImpersonation} style={{ marginRight: 8 }}>Revert</button>}
+                <button onClick={logout}>Logout</button>
+              </>
+            )}
         </div>
       </header>
 
@@ -375,6 +414,9 @@ export default function App() {
                       <span className={`status-pill ${busy[f._id] ? "status-busy" : "status-free"}`}>
                         {busy[f._id] ? "Busy" : "Free"}
                       </span>
+                      {me?.admin && (
+                        <button style={{ marginLeft: 8 }} onClick={() => impersonateUser(f._id)}>Impersonate</button>
+                      )}
                     </div>
                   </label>
                 ))}
