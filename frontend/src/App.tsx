@@ -49,6 +49,7 @@ export default function App() {
   const [me, setMe] = useState<User | null>(null)
   const [isImpersonating, setIsImpersonating] = useState<boolean>(() => !!localStorage.getItem("ss_admin_token"))
   const [showLogin, setShowLogin] = useState<boolean>(false)
+  const [impersonTarget, setImpersonTarget] = useState<string>("")
 
   const [friends, setFriends] = useState<Friend[]>([])
   const [busy, setBusy] = useState<Record<string, boolean>>({})
@@ -126,6 +127,12 @@ export default function App() {
     setOwnerColor(c => ({ ...c, me: "#93c5fd" }))
     await Promise.all([loadMyEvents(), loadFriends(), loadMe()])
   }
+
+  // keep an impersonation target in the topbar when admin
+  useEffect(() => {
+    if (!me?.admin) return
+    if (friends.length && !impersonTarget) setImpersonTarget(friends[0]._id)
+  }, [me, friends])
 
   async function loadMe() {
     try {
@@ -330,16 +337,29 @@ export default function App() {
   const scrollTo = useMemo(() => new Date(1970, 0, 1, 9, 0, 0), [])
 
   // Friend-colored events (dark theme contrast)
+  function hexToRgb(hex: string) {
+    const h = hex.replace('#', '')
+    const bigint = parseInt(h, 16)
+    const r = (bigint >> 16) & 255
+    const g = (bigint >> 8) & 255
+    const b = bigint & 255
+    return `${r}, ${g}, ${b}`
+  }
+
   function eventPropGetter(evt: EventItem) {
     const color = evt.ownerId === "me"
       ? (ownerColor["me"] || "#93c5fd")
       : (ownerColor[evt.ownerId || ""] || "#888")
+    const rgb = hexToRgb(color)
     return {
       style: {
-        background: color,
-        border: "none",
-        color: "#0b1220",
+        background: `rgba(${rgb}, 0.70)`, // stronger fill (70% opacity) per request
+        border: `1px solid rgba(${rgb}, 0.9)`, // subtle outline in owner's color with higher opacity
+        borderLeft: `4px solid ${color}`, // strong colored accent on left
+        color: '#e6f0ff',
         fontWeight: 600,
+        paddingLeft: 8,
+        borderRadius: 6,
       }
     }
   }
@@ -370,6 +390,20 @@ export default function App() {
                 </>
               )}
             </>
+          )}
+          {me?.admin && friends.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 8 }}>
+              <select
+                value={impersonTarget}
+                onChange={e => setImpersonTarget(e.target.value)}
+                style={{ background: '#0b1220', color: '#e2e6ef', borderRadius: 8, padding: '6px 8px', border: '1px solid #2a3140' }}
+              >
+                {friends.map(f => (
+                  <option key={f._id} value={f._id}>{f.name}</option>
+                ))}
+              </select>
+              <button className="impersonate-btn" onClick={() => impersonateUser(impersonTarget)} disabled={!impersonTarget}>Impersonate</button>
+            </div>
           )}
           {!me
             ? <button className="primary" onClick={() => setShowLogin(true)}>Login</button>
@@ -414,9 +448,7 @@ export default function App() {
                       <span className={`status-pill ${busy[f._id] ? "status-busy" : "status-free"}`}>
                         {busy[f._id] ? "Busy" : "Free"}
                       </span>
-                      {me?.admin && (
-                        <button style={{ marginLeft: 8 }} onClick={() => impersonateUser(f._id)}>Impersonate</button>
-                      )}
+                      {/* Impersonate moved to topbar for admins */}
                     </div>
                   </label>
                 ))}

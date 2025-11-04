@@ -27,14 +27,34 @@ body, html, #root {
 /* Content */
 .content { flex: 1; display: flex; overflow: hidden; }
 .sidebar {
-  width: 220px; background: #121820;
-  border-right: 1px solid #1f2937; padding: 12px; overflow-y: auto;
+  width: 240px; /* slightly wider to avoid cramped text near scrollbar */
+  background: #121820;
+  border-right: 1px solid #1f2937;
+  padding: 12px 14px 12px 12px; /* extra right padding so content isn't covered by scrollbar */
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 .section-title { font-size: 13px; text-transform: uppercase; margin-bottom: 6px; color: #9aa4b2; }
 .friend-list { display: grid; gap: 6px; }
-.friend-row { display: flex; align-items: center; gap: 6px; font-size: 14px; }
-.busy-dot { width: 10px; height: 10px; border-radius: 50%; }
-.friend-name { flex: 1; }
+.friend-row { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 6px 4px; border-radius: 8px; }
+.friend-row:hover { background: rgba(255,255,255,0.02); }
+.busy-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 10px; }
+.friend-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Impersonate button styling */
+.impersonate-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(99,102,241,0.12);
+  background: linear-gradient(180deg, rgba(56,103,255,0.12), rgba(56,103,255,0.06));
+  color: #dfe8ff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.impersonate-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(56,103,255,0.12); background: linear-gradient(180deg, rgba(56,103,255,0.18), rgba(56,103,255,0.08)); }
+.impersonate-btn:active { transform: translateY(0); }
+.impersonate-btn.ghost { background: transparent; border-color: rgba(255,255,255,0.04); color: #cbd5ff; }
 
 /* Calendar container */
 .main { flex: 1; overflow: hidden; padding: 10px; }
@@ -123,9 +143,38 @@ body, html, #root {
 .rbc-time-slot { border-top:1px dashed #1f2937; }
 
 /* Event pills / “+N more” / overlays */
-.rbc-event { background:#60a5fa; color:#0b1220; border:none; font-weight:600; }
+.rbc-event {
+  position: relative;
+  overflow: visible;
+  background: transparent; /* actual background is applied inline from eventPropGetter */
+  color: inherit;
+  border: none;
+  font-weight: 600;
+  transition: all 1250ms cubic-bezier(0.19, 1, 0.22, 1);
+  will-change: transform;
+  z-index: 1;
+
+  /* btn-5 initial state: subtle outline and no inset glow */
+  box-shadow: inset 0 0 20px rgba(255,255,255,0);
+  outline: 1px solid;
+  outline-color: rgba(255,255,255,0.5);
+  outline-offset: 0px;
+  text-shadow: none;
+}
+
+.rbc-event:hover {
+  transform: translateY(-2px) scale(1.01); /* small lift */
+  /* btn-5 hover: inset glow + outer soft glow */
+  box-shadow: inset 0 0 20px rgba(255,255,255,0.5), 0 0 20px rgba(255,255,255,0.2), 0 6px 18px rgba(2,6,23,0.18);
+  outline-color: rgba(255,255,255,0);
+  outline-offset: 15px;
+  text-shadow: 1px 1px 2px #427388;
+  cursor: pointer;
+}
 .rbc-show-more { color:#60a5fa; background:rgba(96,165,250,.1); }
 .rbc-overlay { background:#111827; color:#e5e7eb; border-color:#374151; }
 
 /* Now indicator */
 .rbc-current-time-indicator { background:#22c55e; }
+
+/* removed rainbow glow keyframes: using subtle white outline hover instead */
